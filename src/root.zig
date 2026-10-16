@@ -32,7 +32,7 @@ pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
 }
 
 fn render(allocator: std.mem.Allocator) ![]configs.T {
-    const written: scores.Scores = try scores.compose();
+    const written: scores.Scores = try scores.compose(allocator);
 
     var mixer: mix.Mixer(configs.T) = try .init(allocator, configs.CHANNELS);
     defer mixer.deinit();

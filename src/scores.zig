@@ -20,11 +20,11 @@ pub const Scores = struct {
     guitar_root: lines.Guitar,
 };
 
-pub fn compose(
-    // allocator: std.mem.Allocator,
-) !Scores {
+pub fn compose(allocator: std.mem.Allocator) !Scores {
+    const twice = try sheets.SingleSound.concat(allocator, sheets.SingleSound);
+
     return .{
-        .guitar_root = sheets.SingleSound,
+        .guitar_root = twice,
     };
 }
 
