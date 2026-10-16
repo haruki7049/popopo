@@ -13,18 +13,33 @@ pub const lines = struct {
         .timing = primitives.Timing,
         .volume = primitives.Volume,
     });
+
+    /// Score of a drum: kick, snare or crash.
+    pub const Hits = meters.Layer(.{
+        .timing = primitives.Timing,
+        .duration = primitives.Duration,
+        .volume = primitives.Volume,
+    });
 };
 
 pub const Scores = struct {
-    /// The root string of each guitar.
-    guitar_root: lines.Guitar,
+    const Self = @This();
+
+    pub const Guitar = struct {
+        /// The root string of each guitar.
+        root: lines.Guitar,
+    };
+
+    guitar: Self.Guitar,
 };
 
 pub fn compose(allocator: std.mem.Allocator) !Scores {
     const twice = try sheets.SingleSound.concat(allocator, sheets.SingleSound);
 
     return .{
-        .guitar_root = twice,
+        .guitar = .{
+            .root = twice,
+        },
     };
 }
 

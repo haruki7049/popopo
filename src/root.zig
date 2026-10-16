@@ -37,10 +37,10 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     var mixer: mix.Mixer(configs.T) = try .init(allocator, configs.CHANNELS);
     defer mixer.deinit();
 
-    try play(scores.lines.Guitar, allocator, written.guitar_root, instruments.left_string, mixer.bus(.{}));
+    try play(scores.lines.Guitar, allocator, written.guitar.root, instruments.left_string, mixer.bus(.{}));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
-    const end = try (primitives.Timing{ .beat = written.guitar_root.extent }).resolve(context);
+    const end = try (primitives.Timing{ .beat = written.guitar.root.extent }).resolve(context);
     const samples = try mixer.finish(end);
     mix.normalize(configs.T, samples, configs.PEAK);
     return samples;
