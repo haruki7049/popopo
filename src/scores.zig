@@ -19,8 +19,6 @@ pub const lines = struct {
     });
 };
 
-const c3 = lists.Pitches.notate(&.{.{ .name = .{ .code = .c, .octave = 3 } }});
-
 pub const Scores = struct {
     /// The root string of each guitar.
     guitar_root: lines.Guitar,
