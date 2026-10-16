@@ -3,11 +3,6 @@ const meters = @import("meters");
 const configs = @import("./configs.zig");
 const primitives = @import("./primitives.zig");
 
-const lists = struct {
-    /// A list of pitches.
-    const Pitches = meters.Layer(.{ .pitch = primitives.Pitch });
-};
-
 pub const lines = struct {
     /// Score of one guitar string.
     pub const Guitar = meters.Layer(.{
