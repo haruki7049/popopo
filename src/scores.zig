@@ -2,6 +2,7 @@ const std = @import("std");
 const meters = @import("meters");
 const configs = @import("./configs.zig");
 const primitives = @import("./primitives.zig");
+const sheets = @import("./sheets.zig").Gen(lines);
 
 pub const lines = struct {
     /// Score of one guitar string.
@@ -19,15 +20,11 @@ pub const Scores = struct {
     guitar_root: lines.Guitar,
 };
 
-const zons = struct {
-    const SingleSound: lines.Guitar = @import("./scores/single-sound.zon");
-};
-
 pub fn compose(
     // allocator: std.mem.Allocator,
 ) !Scores {
     return .{
-        .guitar_root = zons.SingleSound,
+        .guitar_root = sheets.SingleSound,
     };
 }
 
