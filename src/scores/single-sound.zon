@@ -1,0 +1,10 @@
+.{
+    .columns = .{
+        .duration = .{.{ .beats = 4.0 }},
+        .mute = .{.{ .amount = 0.85 }},
+        .pitch = .{.{ .name = .{ .code = .c, .octave = 3 } }},
+        .timing = .{.{ .bar = 0, .beat = 0.0 }},
+        .volume = .{.{ .value = 1.0 }},
+    },
+    .extent = 1.0,
+}
