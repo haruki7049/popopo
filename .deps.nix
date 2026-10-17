@@ -2,13 +2,6 @@
 
 linkFarm "zig-packages" [
   {
-    name = "meters-0.1.0-EsVLmztkAQCiAyU2pe8rTEO5jTc_KUC9CJTpq3GtkejB";
-    path = fetchzip {
-      url = "https://github.com/haruki7049/meters/archive/b75cf3cd0078e0b2dac4a1ea95fe4e41aaf0655a.tar.gz";
-      hash = "sha256-RBApNgLA0W34UWyO9iwnvjJg5uCtSW+mRdQn8A4F8jg=";
-    };
-  }
-  {
     name = "pitches-0.1.0-pcDEyZx6AABD_--oGDHDs6eN9KKZlGo6Hk70knpiQJrg";
     path = fetchzip {
       url = "https://github.com/haruki7049/pitches/archive/ff043817d4baaf54f83044eb6c542319659e4017.tar.gz";

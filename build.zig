@@ -5,8 +5,9 @@ const l = @import("lightmix");
 /// import nothing but `std`: an `@import` of `lightmix` or of another module fails to compile.
 const module_names = [_][]const u8{
     "body", // The rule of a vibrating body
-    "perform", // The procedure that turns values into waveforms
+    "meters", // Metric and time scheduling data structures
     "mix", // Place and mix
+    "perform", // The procedure that turns values into waveforms
     "timbre", // Ready-made timbres
 };
 
@@ -20,16 +21,12 @@ pub fn build(b: *std.Build) !void {
     const pitches = b.dependency("pitches", .{});
     const pitches_import: std.Build.Module.Import = .{ .name = "pitches", .module = pitches.module("pitches") };
 
-    const meters = b.dependency("meters", .{});
-    const meters_import: std.Build.Module.Import = .{ .name = "meters", .module = meters.module("meters") };
-
     const test_step = b.step("test", "Run tests");
 
     // Modules: no imports. Each runs its own tests, without the others.
     var imports: std.ArrayList(std.Build.Module.Import) = .empty;
     try imports.append(b.allocator, lightmix_import);
     try imports.append(b.allocator, pitches_import);
-    try imports.append(b.allocator, meters_import);
 
     for (module_names) |name| {
         const module = b.createModule(.{
