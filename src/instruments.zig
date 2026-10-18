@@ -16,8 +16,8 @@ pub fn Procedure(comptime R: type) type {
     return perform.Procedure(T, R, body, .timing);
 }
 
-/// A resolved note of a guitar string: a bass note and its palm `mute`.
 const GuitarNote = scores.lines.Guitar.Resolved;
+const HitNote = scores.lines.Hit.Resolved;
 
 /// Seconds to frames.
 fn toFrames(seconds: T) usize {
@@ -31,8 +31,10 @@ fn seeded(salt: u64, start: usize) std.Random.DefaultPrng {
 }
 
 /// A drum sounds for `seconds` unless its volume is zero.
-fn drumLength(seconds: T, volume: T) usize {
-    return if (volume > 0.0) toFrames(seconds) else 0;
+fn drumLength(note: HitNote) usize {
+    const SECONDS: usize = 1;
+
+    return if (note.volume > 0.0) toFrames(SECONDS) else 0;
 }
 
 /// The kick, with a shorter decay than the default, so it has died away by the end of its 0.55 s.
@@ -66,10 +68,25 @@ fn rightGuitarTimbre(allocator: std.mem.Allocator, note: GuitarNote, length: usi
     return right_guitar.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
 }
 
+/// Sounds the left guitar at the pitch, palm muting and volume of the note.
+fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
+    return kick_timbre.render(allocator, configs.SAMPLE_RATE, note.volume, length, frames);
+}
+
+/// Sounds the left guitar at the pitch, palm muting and volume of the note.
+fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
+    var prng = seeded(0x5a7e, note.timing);
+    return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
+}
+
 /// One string of the left guitar; the root and the fifth are two such bodies.
 pub const left_string: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = leftGuitarTimbre };
 /// One string of the right guitar.
 pub const right_string: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = rightGuitarTimbre };
+
+pub const kick_body: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
+
+pub const snare_body: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
 
 test {
     std.testing.refAllDecls(@This());

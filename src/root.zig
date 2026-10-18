@@ -38,6 +38,8 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     defer mixer.deinit();
 
     try play(scores.lines.Guitar, allocator, written.guitar.root, instruments.left_string, mixer.bus(.{}));
+    try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick_body, mixer.bus(.{}));
+    try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare_body, mixer.bus(.{}));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try (primitives.Timing{ .beat = written.guitar.root.extent }).resolve(context);
