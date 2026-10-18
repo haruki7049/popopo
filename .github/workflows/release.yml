@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31.6.0
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Build
+        # Runs `zig build` (renders pulse.wav) and `zig build test` in the Nix sandbox
+        run: nix build .#default --print-build-logs
+      - name: Collect release assets
+        run: |
+          mkdir dist
+          cp result/share/pulse.wav dist/pulse.wav
+          (cd dist && sha256sum ./* > SHA256SUMS)
+      - name: Upload assets to the release
+        uses: svenstaro/upload-release-action@2.11.5
+        with:
+          file: dist/*
+          file_glob: true
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "pulse.wav rendered from ${{ github.ref_name }}."
