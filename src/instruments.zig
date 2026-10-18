@@ -47,9 +47,6 @@ const Cymbal = timbre.Cymbal(T);
 const bass_timbre: timbre.Bass(T) = .{};
 /// The left guitar.
 const left_guitar: timbre.Guitar(T) = .{ .detune = 6.0 };
-/// The right guitar: more detune and drive and a darker cabinet than the left one, so the
-/// two sides differ.
-const right_guitar: timbre.Guitar(T) = .{ .detune = 9.0, .drive = 10.0, .cabinet = 3900.0 };
 
 /// A muted string is lifted early; an open one rings for its whole duration.
 fn guitarLength(note: GuitarNote) usize {
@@ -61,11 +58,6 @@ fn guitarLength(note: GuitarNote) usize {
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.
 fn leftGuitarTimbre(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
     return left_guitar.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
-}
-
-/// Sounds the right guitar at the pitch, palm muting and volume of the note.
-fn rightGuitarTimbre(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
-    return right_guitar.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
 }
 
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.
@@ -81,8 +73,6 @@ fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, f
 
 /// One string of the left guitar; the root and the fifth are two such bodies.
 pub const left_string: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = leftGuitarTimbre };
-/// One string of the right guitar.
-pub const right_string: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = rightGuitarTimbre };
 
 pub const kick_body: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
