@@ -49,9 +49,9 @@ pub fn compose(allocator: std.mem.Allocator) !Scores {
 }
 
 fn guitar(allocator: std.mem.Allocator) !Scores.Guitar {
-    return .{
-        .root = try sheets.SingleSound.concat(allocator, sheets.SingleSound),
-    };
+    const root = try sheets.SingleSound.repeat(allocator, 2);
+
+    return .{ .root = root };
 }
 
 fn drum(allocator: std.mem.Allocator) !Scores.Drum {
