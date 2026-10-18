@@ -19,7 +19,7 @@ pub const Drum = struct {
 /// Length of this section in beats; every part written in it must last exactly this long.
 extent: f64,
 
-guitar: Guitar = .{},
+base: Guitar = .{},
 drum: Drum = .{},
 
 /// Places `sections` one after another and gives the score of each vibrating body.

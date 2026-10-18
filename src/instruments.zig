@@ -43,10 +43,8 @@ const kick_timbre: timbre.Kick(T) = .{ .decay = 0.17 };
 const snare_timbre: timbre.Snare(T) = .{};
 /// The cymbals; the closed and open hi-hat and the crash are its settings.
 const Cymbal = timbre.Cymbal(T);
-/// The bass with its default settings.
-const bass_timbre: timbre.Bass(T) = .{};
 /// The left guitar.
-const left_guitar: timbre.Guitar(T) = .{ .detune = 6.0 };
+const guitar_timbre: timbre.Guitar(T) = .{ .detune = 6.0 };
 
 /// A muted string is lifted early; an open one rings for its whole duration.
 fn guitarLength(note: GuitarNote) usize {
@@ -56,8 +54,8 @@ fn guitarLength(note: GuitarNote) usize {
 }
 
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.
-fn leftGuitarTimbre(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
-    return left_guitar.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
+fn guitarTimble(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
+    return guitar_timbre.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
 }
 
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.
@@ -72,11 +70,11 @@ fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, f
 }
 
 /// One string of the left guitar; the root and the fifth are two such bodies.
-pub const left_string: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = leftGuitarTimbre };
+pub const guitar: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = guitarTimble };
 
-pub const kick_body: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
+pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
-pub const snare_body: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
+pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
 
 test {
     std.testing.refAllDecls(@This());

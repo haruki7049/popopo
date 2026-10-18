@@ -11,8 +11,8 @@ pub fn compose(allocator: std.mem.Allocator) !Scores {
     const snare = try sheets.Drums.EightBeat.Snares.repeat(allocator, 4);
 
     return Section.concat(allocator, &.{
-        .{ .extent = 16.0, .guitar = .{ .root = guitar } },
-        .{ .extent = 16.0, .guitar = .{ .root = guitar }, .drum = .{ .kick = kick, .snare = snare } },
+        .{ .extent = 16.0, .base = .{ .root = guitar } },
+        .{ .extent = 16.0, .base = .{ .root = guitar }, .drum = .{ .kick = kick, .snare = snare } },
     });
 }
 

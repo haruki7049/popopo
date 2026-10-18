@@ -18,7 +18,7 @@ pub const Drum = struct {
     snare: lines.Hit,
 };
 
-guitar: Self.Guitar,
+base: Self.Guitar,
 drum: Self.Drum,
 
 test {

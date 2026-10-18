@@ -19,8 +19,6 @@ pub const Kick = @import("./kick.zig").inner;
 pub const Snare = @import("./snare.zig").inner;
 /// Cymbals, with the settings `closed`, `open` (hi-hats) and `crash`.
 pub const Cymbal = @import("./cymbal.zig").inner;
-/// Overdriven picked electric bass.
-pub const Bass = @import("./bass.zig").inner;
 /// Distorted electric guitar string, open or palm-muted.
 pub const Guitar = @import("./guitar.zig").inner;
 
