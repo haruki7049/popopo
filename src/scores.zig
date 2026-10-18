@@ -55,13 +55,8 @@ fn guitar(allocator: std.mem.Allocator) !Scores.Guitar {
 }
 
 fn drum(allocator: std.mem.Allocator) !Scores.Drum {
-    var kick = try sheets.Drums.EightBeat.Kicks.concat(allocator, sheets.Drums.EightBeat.Kicks);
-    kick = try kick.concat(allocator, sheets.Drums.EightBeat.Kicks);
-    kick = try kick.concat(allocator, sheets.Drums.EightBeat.Kicks);
-
-    var snare = try sheets.Drums.EightBeat.Snares.concat(allocator, sheets.Drums.EightBeat.Snares);
-    snare = try snare.concat(allocator, sheets.Drums.EightBeat.Snares);
-    snare = try snare.concat(allocator, sheets.Drums.EightBeat.Snares);
+    const kick = try sheets.Drums.EightBeat.Kicks.repeat(allocator, 4);
+    const snare = try sheets.Drums.EightBeat.Snares.repeat(allocator, 4);
 
     return .{
         .kick = kick,
