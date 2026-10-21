@@ -18,6 +18,7 @@ const module_names = [_][]const u8{
 const MusicPart = enum {
     introduction,
     a,
+    b,
 };
 
 pub fn build(b: *std.Build) !void {
