@@ -8,10 +8,12 @@ pub const Scores = @import("./scores/scores.zig");
 pub fn compose(allocator: std.mem.Allocator) !Scores {
     const kick = try sheets.Drums.EightBeat0.Kicks.repeat(allocator, 2);
     const snare = try sheets.Drums.EightBeat0.Snares.repeat(allocator, 2);
+    const base_root = try sheets.Base.WithoutThird.repeat(allocator, 4);
 
     return Section.concat(allocator, &.{
         .{ .extent = 16.0, .drum = .{ .kick = kick } },
         .{ .extent = 16.0, .drum = .{ .kick = kick, .snare = snare } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick, .snare = snare }, .base = .{ .root = base_root } },
     });
 }
 
