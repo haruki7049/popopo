@@ -44,7 +44,7 @@ const snare_timbre: timbre.Snare(T) = .{};
 /// The cymbals; the closed and open hi-hat and the crash are its settings.
 const Cymbal = timbre.Cymbal(T);
 /// The left guitar.
-const guitar_timbre: timbre.Guitar(T) = .{ .detune = 6.0 };
+const guitar_timbre: timbre.Guitar(T) = .{};
 
 /// A muted string is lifted early; an open one rings for its whole duration.
 fn guitarLength(note: GuitarNote) usize {

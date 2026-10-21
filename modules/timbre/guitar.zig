@@ -1,5 +1,6 @@
-//! Distorted electric guitar string: two detuned saws and a square, a pick filter that palm muting
-//! closes, asymmetric high-gain clipping, and a speaker cabinet.
+//! Acoustic guitar string: a plucked string built from decaying harmonics, whose upper harmonics
+//! die faster, with a pluck-position comb, palm muting that shortens and darkens the note, and a
+//! body resonance.
 
 const std = @import("std");
 const dsp = @import("./dsp.zig");
@@ -9,26 +10,29 @@ pub fn inner(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        /// Gain into the clipper.
-        drive: T = 9.0,
-        /// Detune of the two saws, in cents.
-        detune: T = 6.0,
-        /// Cutoff of the pick filter on an open note, in Hz.
-        open_cutoff: T = 3200.0,
-        /// Cutoff of the pick filter on a fully muted note, in Hz.
-        muted_cutoff: T = 1000.0,
+        /// Most harmonics of the string that are summed.
+        const harmonics = 24;
+
+        /// Where the string is plucked, as a fraction of its length from the bridge.
+        pluck_position: T = 0.18,
+        /// How fast the harmonics fall off with their number; higher is mellower.
+        mellowness: T = 1.1,
+        /// How much faster the upper harmonics die away; 0 makes them last as long as the root.
+        damping: T = 0.35,
+        /// Stretch of the harmonics from a stiff string, 0 for none.
+        inharmonicity: T = 0.00008,
         /// Time constant of an open note's decay, in seconds.
         open_decay: T = 1.4,
         /// Time constant of a fully muted note's decay, in seconds.
         muted_decay: T = 0.09,
-        /// Cutoff of the cabinet, in Hz.
-        cabinet: T = 5000.0,
-        /// Boost of the cabinet's presence band, 0 for none.
-        presence: T = 0.9,
-        /// Center of the presence band, in Hz.
-        presence_frequency: T = 2600.0,
+        /// Resonance of the body's air cavity, in Hz.
+        body_frequency: T = 105.0,
+        /// Boost of the body resonance, 0 for none.
+        body: T = 0.6,
+        /// Cutoff of the top of the sound, in Hz.
+        brightness: T = 6500.0,
         /// Rise at the start of the note, in seconds.
-        attack: T = 0.0015,
+        attack: T = 0.002,
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.01,
 
@@ -42,35 +46,47 @@ pub fn inner(comptime T: type) type {
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
             const m = std.math.clamp(mute, 0.0, 1.0);
-            const spread = std.math.pow(T, 2.0, self.detune / 1200.0);
-            const cutoff = self.open_cutoff + (self.muted_cutoff - self.open_cutoff) * m;
             const fall = self.open_decay + (self.muted_decay - self.open_decay) * m;
+            // Palm muting damps the upper harmonics more.
+            const darkening = self.damping * (1.0 + 4.0 * m);
 
-            var upper: dsp.Oscillator(T) = .{};
-            var lower: dsp.Oscillator(T) = .{};
-            var square: dsp.Oscillator(T) = .{};
-            var pick = dsp.Biquad(T).init(.lowpass, cutoff, 0.8, rate);
-            var tight = dsp.Biquad(T).init(.highpass, 120.0, 0.707, rate);
-            var cabinet_a = dsp.Biquad(T).init(.lowpass, self.cabinet, 0.707, rate);
-            var cabinet_b = dsp.Biquad(T).init(.lowpass, self.cabinet * 1.2, 1.1, rate);
-            var dc = dsp.Biquad(T).init(.highpass, 80.0, 0.707, rate);
-            var presence = dsp.Biquad(T).init(.bandpass, self.presence_frequency, 0.9, rate);
+            // The partials: frequency, level and decay of each harmonic below the Nyquist frequency.
+            var freq: [harmonics]T = undefined;
+            var level: [harmonics]T = undefined;
+            var tau: [harmonics]T = undefined;
+            var count: usize = 0;
+            var norm: T = 0.0;
+            for (0..harmonics) |k| {
+                const n: T = @floatFromInt(k + 1);
+                const f = frequency * n * @sqrt(1.0 + self.inharmonicity * n * n);
+                if (f >= 0.45 * rate) break;
+                // Plucking at a fraction of the string leaves out the harmonics with a node there.
+                const comb = @abs(@sin(std.math.pi * n * self.pluck_position));
+                freq[count] = f;
+                level[count] = comb / std.math.pow(T, n, self.mellowness);
+                tau[count] = fall / (1.0 + darkening * (n - 1.0));
+                norm += level[count];
+                count += 1;
+            }
+            if (norm > 0.0) for (level[0..count]) |*l| {
+                l.* /= norm;
+            };
 
-            // The clipper leans to one side, which adds even harmonics; the offset is taken back out.
-            const bias: T = 0.08;
-            const rest = std.math.tanh(self.drive * bias);
+            var air = dsp.Biquad(T).init(.bandpass, self.body_frequency, 2.5, rate);
+            var top = dsp.Biquad(T).init(.lowpass, self.brightness, 0.707, rate);
+            var dc = dsp.Biquad(T).init(.highpass, 60.0, 0.707, rate);
 
             for (samples, 0..) |*sample, i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
 
-                const tone = 0.5 * (upper.saw(frequency * spread, rate) + lower.saw(frequency / spread, rate)) + 0.35 * square.square(frequency, rate);
-                const level = dsp.rise(T, t, self.attack) * dsp.decay(T, t, fall);
-                const into = tight.process(pick.process(tone)) * level;
-                const clipped = std.math.tanh(self.drive * (into + bias)) - rest;
-                const cabinet = cabinet_b.process(cabinet_a.process(dc.process(clipped)));
-                const voiced = cabinet + self.presence * presence.process(cabinet);
+                var string: T = 0.0;
+                for (0..count) |k| {
+                    string += level[k] * @sin(2.0 * std.math.pi * freq[k] * t) * dsp.decay(T, t, tau[k]);
+                }
+                const plucked = dc.process(top.process(string)) * dsp.rise(T, t, self.attack);
+                const voiced = plucked + self.body * air.process(plucked);
 
-                sample.* = volume * 0.6 * voiced * dsp.tail(T, i, length, release_frames);
+                sample.* = volume * 1.2 * voiced * dsp.tail(T, i, length, release_frames);
             }
             return samples;
         }

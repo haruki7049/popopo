@@ -37,7 +37,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     var mixer: mix.Mixer(configs.T) = try .init(allocator, configs.CHANNELS);
     defer mixer.deinit();
 
-    try play(scores.lines.Guitar, allocator, written.base.root, instruments.guitar, mixer.bus(.{ .gain = 0.2 }));
+    try play(scores.lines.Guitar, allocator, written.base.root, instruments.guitar, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
 

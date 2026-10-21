@@ -1,4 +1,4 @@
-//! Ready-made timbres for rock: drums, an overdriven bass and a distorted guitar string.
+//! Ready-made timbres for rock: drums and an acoustic guitar string.
 //!
 //! Role: Ready-made timbres. Depends on nothing but `std`.
 //!
@@ -19,7 +19,7 @@ pub const Kick = @import("./kick.zig").inner;
 pub const Snare = @import("./snare.zig").inner;
 /// Cymbals, with the settings `closed`, `open` (hi-hats) and `crash`.
 pub const Cymbal = @import("./cymbal.zig").inner;
-/// Distorted electric guitar string, open or palm-muted.
+/// Acoustic guitar string, open or palm-muted.
 pub const Guitar = @import("./guitar.zig").inner;
 
 test {
