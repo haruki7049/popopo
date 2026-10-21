@@ -12,9 +12,19 @@ const module_names = [_][]const u8{
     "timbre", // Ready-made timbres
 };
 
+/// The music parts that can be built with `-Dmusic-part=<name>`; without it, all of them are
+/// joined in declaration order. Each tag matches a declaration of the `sheets` module and a
+/// branch of `sections` in `src/scores.zig`.
+const MusicPart = enum {
+    introduction,
+    a,
+};
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const music_part = b.option(MusicPart, "music-part", "Build only this music part (default: all parts, joined in order)");
 
     const lightmix = b.dependency("lightmix", .{});
     const lightmix_import: std.Build.Module.Import = .{ .name = "lightmix", .module = lightmix.module("lightmix") };
@@ -40,6 +50,12 @@ pub fn build(b: *std.Build) !void {
         const module_tests = b.addTest(.{ .name = name, .root_module = module });
         test_step.dependOn(&b.addRunArtifact(module_tests).step);
     }
+
+    const build_options = b.addOptions();
+    // An enum option cannot be optional: `music_part` only matters when `all_parts` is false.
+    build_options.addOption(bool, "all_parts", music_part == null);
+    build_options.addOption(MusicPart, "music_part", music_part orelse .introduction);
+    try imports.append(b.allocator, .{ .name = "build_options", .module = build_options.createModule() });
 
     // The piece: the only module that imports `lightmix` and the modules.
     const mod = b.createModule(.{
