@@ -8,6 +8,7 @@ const module_names = [_][]const u8{
     "meters", // Metric and time scheduling data structures
     "mix", // Place and mix
     "perform", // The procedure that turns values into waveforms
+    "sheets", // Music sheets separated by popopo music parts
     "timbre", // Ready-made timbres
 };
 
