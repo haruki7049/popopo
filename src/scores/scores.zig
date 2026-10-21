@@ -19,6 +19,7 @@ pub const Drum = struct {
 };
 
 base: Self.Guitar,
+melody: Self.Guitar,
 drum: Self.Drum,
 
 test {

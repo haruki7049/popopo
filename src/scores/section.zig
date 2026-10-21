@@ -20,6 +20,7 @@ pub const Drum = struct {
 extent: f64,
 
 base: Guitar = .{},
+melody: Guitar = .{},
 drum: Drum = .{},
 
 /// Places `sections` one after another and gives the score of each vibrating body.

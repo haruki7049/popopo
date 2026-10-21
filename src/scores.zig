@@ -11,11 +11,13 @@ pub fn compose(allocator: std.mem.Allocator) !Scores {
     const kick = try introduction.Drums.EightBeat0.Kicks.repeat(allocator, 2);
     const snare = try introduction.Drums.EightBeat0.Snares.repeat(allocator, 2);
     const base_root = try introduction.Base.WithoutThird.repeat(allocator, 4);
+    const melody_root = try introduction.Melody.TooooToTo.repeat(allocator, 2);
 
     return Section.concat(allocator, &.{
         .{ .extent = 16.0, .drum = .{ .kick = kick } },
         .{ .extent = 16.0, .drum = .{ .kick = kick, .snare = snare } },
         .{ .extent = 16.0, .drum = .{ .kick = kick, .snare = snare }, .base = .{ .root = base_root } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
     });
 }
 
