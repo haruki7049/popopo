@@ -1,5 +1,5 @@
 pub fn Gen(comptime L: type) type {
     return struct {
-        pub const EightBeat = @import("./drums/eight-beat.zig").Gen(L);
+        pub const EightBeat0 = @import("./drums/eight-beat0.zig").Gen(L);
     };
 }

@@ -6,13 +6,12 @@ pub const Section = @import("./scores/section.zig");
 pub const Scores = @import("./scores/scores.zig");
 
 pub fn compose(allocator: std.mem.Allocator) !Scores {
-    const guitar = try sheets.SingleSound.repeat(allocator, 2);
-    const kick = try sheets.Drums.EightBeat.Kicks.repeat(allocator, 4);
-    const snare = try sheets.Drums.EightBeat.Snares.repeat(allocator, 4);
+    const kick = try sheets.Drums.EightBeat0.Kicks.repeat(allocator, 2);
+    const snare = try sheets.Drums.EightBeat0.Snares.repeat(allocator, 2);
 
     return Section.concat(allocator, &.{
-        .{ .extent = 16.0, .base = .{ .root = guitar } },
-        .{ .extent = 16.0, .base = .{ .root = guitar }, .drum = .{ .kick = kick, .snare = snare } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick, .snare = snare } },
     });
 }
 
