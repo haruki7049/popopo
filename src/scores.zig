@@ -38,11 +38,13 @@ fn b(allocator: std.mem.Allocator) ![]const Section {
     const kick_with_rests = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
     const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
     const base_root = try b_sheet.Base.WithoutThird.repeat(allocator, 4);
-    // const melody_root = try b_sheet.Melody.MainPhrase.repeat(allocator, 1);
+    const melody_root = try b_sheet.Melody.MainPhrase.repeat(allocator, 1);
 
     return allocator.dupe(Section, &.{
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root } },
+        // .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root } },
+        // .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
     });
 }
 
