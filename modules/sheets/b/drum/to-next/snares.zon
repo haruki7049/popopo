@@ -8,10 +8,8 @@
             .{ .bar = 0, .beat = 3.5 },
 
             // bar 1
-            .{ .bar = 1, .beat = 0.0 },
             .{ .bar = 1, .beat = 0.5 },
             .{ .bar = 1, .beat = 1.0 },
-            .{ .bar = 1, .beat = 1.5 },
             .{ .bar = 1, .beat = 2.0 },
         },
         .volume = .{
@@ -22,8 +20,6 @@
             .{ .value = 1.0 },
 
             // bar 1
-            .{ .value = 1.0 },
-            .{ .value = 1.0 },
             .{ .value = 1.0 },
             .{ .value = 1.0 },
             .{ .value = 1.0 },
