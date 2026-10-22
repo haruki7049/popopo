@@ -41,9 +41,11 @@ fn b(allocator: std.mem.Allocator) ![]const Section {
     const melody_root = try b_sheet.Melody.MainPhrase.repeat(allocator, 1);
     const melody_root_to_next = try b_sheet.Melody.ToNext.repeat(allocator, 1);
 
+    const kick_to_next = try b_sheet.Drum.EightBeat1.Kicks.repeat(allocator, 4);
+
     return allocator.dupe(Section, &.{
         .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root_to_next } },
+        .{ .extent = 16.0, .drum = .{ .kick = kick_to_next, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root_to_next } },
     });
 }
 
