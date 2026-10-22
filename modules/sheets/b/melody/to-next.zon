@@ -57,18 +57,18 @@
             // bar 1
             .{ .name = .{ .code = .a, .octave = 2 } },
             .{ .name = .{ .code = .a, .octave = 2 } },
-            .{ .name = .{ .code = .a, .octave = 2 } },
-            .{ .name = .{ .code = .a, .octave = 2 } },
-
-            // bar 2
-            .{ .name = .{ .code = .a, .octave = 2 } },
-            .{ .name = .{ .code = .g, .octave = 2 } },
             .{ .name = .{ .code = .f, .octave = 2 } },
             .{ .name = .{ .code = .e, .octave = 2 } },
 
-            // bar 3
+            // bar 2
             .{ .name = .{ .code = .a, .octave = 2 } },
-            .{ .name = .{ .code = .ds, .octave = 2 } },
+            .{ .name = .{ .code = .a, .octave = 2 } },
+            .{ .name = .{ .code = .b, .octave = 2 } },
+            .{ .name = .{ .code = .c, .octave = 3 } },
+
+            // bar 3
+            .{ .name = .{ .code = .d, .octave = 3 } },
+            .{ .name = .{ .code = .e, .octave = 3 } },
         },
         .timing = .{
             // bar 0

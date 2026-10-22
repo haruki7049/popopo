@@ -57,14 +57,14 @@
             // bar 1
             .{ .name = .{ .code = .a, .octave = 2 } },
             .{ .name = .{ .code = .a, .octave = 2 } },
-            .{ .name = .{ .code = .a, .octave = 2 } },
-            .{ .name = .{ .code = .a, .octave = 2 } },
+            .{ .name = .{ .code = .f, .octave = 2 } },
+            .{ .name = .{ .code = .e, .octave = 2 } },
 
             // bar 2
             .{ .name = .{ .code = .a, .octave = 2 } },
+            .{ .name = .{ .code = .a, .octave = 2 } },
+            .{ .name = .{ .code = .b, .octave = 2 } },
             .{ .name = .{ .code = .g, .octave = 2 } },
-            .{ .name = .{ .code = .f, .octave = 2 } },
-            .{ .name = .{ .code = .e, .octave = 2 } },
 
             // bar 3
             .{ .name = .{ .code = .a, .octave = 2 } },
