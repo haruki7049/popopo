@@ -32,7 +32,7 @@ fn sections(allocator: std.mem.Allocator, part: Part) ![]const Section {
 }
 
 fn b(allocator: std.mem.Allocator) ![]const Section {
-    const b_sheet = sheets.b.Gen(lines);
+    const b_sheet = sheets.B(lines).gen(allocator);
     const basics_sheets = sheets.basics.Gen(lines);
 
     const kick_a = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
