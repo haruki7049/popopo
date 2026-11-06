@@ -9,6 +9,8 @@ pub fn inner(comptime T: type) type {
     return struct {
         const Self = @This();
 
+        const Error = std.mem.Allocator.Error;
+
         /// Lower shell mode, in Hz.
         shell_frequency: T = 182.0,
         /// Upper shell mode as a ratio of the lower one.
@@ -60,8 +62,8 @@ pub fn inner(comptime T: type) type {
             return samples;
         }
 
-        pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
-            const samples = try self.render(allocator, sample_rate, channels, volume, length, frames);
+        pub fn wave(self: Self, allocator: std.mem.Allocator, random: std.Random, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
+            const samples = try self.render(allocator, random, sample_rate, channels, volume, length, frames);
 
             return .{
                 .samples = samples,
