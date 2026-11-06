@@ -1,12 +1,17 @@
 //! Rock kick drum: a sine that drops in pitch, a beater click, and saturation for punch.
 
 const std = @import("std");
+const lightmix = @import("lightmix");
 const dsp = @import("./dsp.zig");
 
 /// Returns the kick type for samples of type `T`. The fields are the parameters of the timbre.
 pub fn inner(comptime T: type) type {
     return struct {
         const Self = @This();
+
+        const Error = std.mem.Allocator.Error;
+
+        const CHANNELS: u16 = 1; // Mono
 
         /// Pitch of the body when the beater hits, in Hz.
         start_frequency: T = 165.0,
@@ -25,7 +30,7 @@ pub fn inner(comptime T: type) type {
 
         /// Returns the first `frames` frames (mono) of a hit at `volume` that sounds `length`
         /// frames if nothing cuts it. Frames past `length` are silent. The caller owns the samples.
-        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, volume: T, length: usize, frames: usize) std.mem.Allocator.Error![]T {
+        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, volume: T, length: usize, frames: usize) Self.Error![]T {
             const samples = try allocator.alloc(T, frames);
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
@@ -45,6 +50,17 @@ pub fn inner(comptime T: type) type {
                 sample.* = volume * hit * dsp.tail(T, i, length, release_frames);
             }
             return samples;
+        }
+
+        pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
+            const samples = try self.render(allocator, sample_rate, volume, length, frames);
+
+            return .{
+                .samples = samples,
+                .allocator = allocator,
+                .sample_rate = sample_rate,
+                .channels = CHANNELS,
+            };
         }
     };
 }
