@@ -95,7 +95,7 @@ pub fn build(b: *std.Build) !void {
 
     // Sandbox
     const sandbox_step = b.step("sandbox", "Generate wav files on sandbox");
-    try build_sandbox(b, target, optimize, &.{lightmix_import}, sandbox_step);
+    try build_sandbox(b, target, optimize, imports.items, sandbox_step);
 }
 
 fn build_sandbox(
@@ -106,10 +106,7 @@ fn build_sandbox(
     sandbox_step: *std.Build.Step,
 ) !void {
     const paths_names: []const struct { []const u8, []const u8 } = &.{
-        .{ "sandbox/karplus-strong/mono-440.0.zig", "karplus-strong-mono-440.0.wav" },
-        .{ "sandbox/karplus-strong/mono-bass-110.0.zig", "karplus-strong-mono-bass-110.0.wav" },
-        .{ "sandbox/sine/mono-440.0.zig", "sine-mono-440.0.wav" },
-        .{ "sandbox/sine/stereo-440.0.zig", "sine-stereo-440.0.wav" },
+        .{ "sandbox/kick-mono.zig", "kick-mono.wav" },
     };
 
     inline for (paths_names) |pn| {
@@ -124,26 +121,6 @@ fn build_sandbox(
         });
 
         try add_sandbox_wave(b, optimize, mod, name, sandbox_step);
-    }
-
-    // Phrases share a single source file; the phrase is selected through the `phrase_options` module.
-    const phrase_ids: []const []const u8 = &.{
-        // "0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007"
-    };
-
-    inline for (phrase_ids) |id| {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("sandbox/phrases/phrase.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = imports,
-        });
-
-        const phrase_options = b.addOptions();
-        phrase_options.addOption([]const u8, "phrase", "_" ++ id);
-        mod.addOptions("phrase_options", phrase_options);
-
-        try add_sandbox_wave(b, optimize, mod, "phrase-" ++ id ++ ".wav", sandbox_step);
     }
 }
 
