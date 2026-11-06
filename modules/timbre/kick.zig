@@ -69,7 +69,7 @@ pub fn inner(comptime T: type) type {
 test "render returns the frames asked for, starting and ending at zero" {
     const allocator = std.testing.allocator;
     const kick: inner(f64) = .{};
-    const samples = try kick.render(allocator, 44100, 1.0, 15435, 15435);
+    const samples = try kick.render(allocator, 44100, 1, 1.0, 15435, 15435);
     defer allocator.free(samples);
 
     try std.testing.expectEqual(@as(usize, 15435), samples.len);
@@ -83,9 +83,9 @@ test "render returns the frames asked for, starting and ending at zero" {
 test "a cut hit is the start of the full hit" {
     const allocator = std.testing.allocator;
     const kick: inner(f64) = .{};
-    const full = try kick.render(allocator, 44100, 0.8, 10000, 10000);
+    const full = try kick.render(allocator, 44100, 1, 0.8, 10000, 10000);
     defer allocator.free(full);
-    const cut = try kick.render(allocator, 44100, 0.8, 10000, 3000);
+    const cut = try kick.render(allocator, 44100, 1, 0.8, 10000, 3000);
     defer allocator.free(cut);
     try std.testing.expectEqualSlices(f64, full[0..3000], cut);
 }
