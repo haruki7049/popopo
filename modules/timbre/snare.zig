@@ -28,8 +28,8 @@ pub fn inner(comptime T: type) type {
         /// Returns the first `frames` frames (mono) of a hit at `volume` that sounds `length`
         /// frames if nothing cuts it. The noise is drawn from `random`, so the caller decides the
         /// seed. Frames past `length` are silent. The caller owns the samples.
-        pub fn render(self: Self, allocator: std.mem.Allocator, random: std.Random, sample_rate: u32, volume: T, length: usize, frames: usize) std.mem.Allocator.Error![]T {
-            const samples = try allocator.alloc(T, frames);
+        pub fn render(self: Self, allocator: std.mem.Allocator, random: std.Random, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) std.mem.Allocator.Error![]T {
+            const samples = try allocator.alloc(T, frames * channels);
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
@@ -38,7 +38,7 @@ pub fn inner(comptime T: type) type {
             var wire_band = dsp.Biquad(T).init(.bandpass, 3800.0, 0.55, rate);
             var wire_air = dsp.Biquad(T).init(.highpass, 1400.0, 0.707, rate);
 
-            for (samples, 0..) |*sample, i| {
+            for (0..samples.len / channels) |i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
                 // The head is tighter for a moment after the hit, so the shell starts a little sharp.
                 const bend = 1.0 + 0.12 * dsp.decay(T, t, 0.012);
@@ -51,7 +51,10 @@ pub fn inner(comptime T: type) type {
 
                 const hit = shell + self.wires * wires + self.crack * crack;
                 const onset = dsp.rise(T, t, 0.0004);
-                sample.* = volume * dsp.saturate(T, hit * onset, self.drive) * dsp.tail(T, i, length, release_frames);
+
+                const value = volume * dsp.saturate(T, hit * onset, self.drive) * dsp.tail(T, i, length, release_frames);
+                for (0..channels) |j|
+                    samples[i * channels + j] = value;
             }
             return samples;
         }
@@ -62,7 +65,7 @@ test "render returns the frames asked for, starting and ending at zero" {
     const allocator = std.testing.allocator;
     var prng = std.Random.DefaultPrng.init(7);
     const snare: inner(f64) = .{};
-    const samples = try snare.render(allocator, prng.random(), 44100, 1.0, 13230, 13230);
+    const samples = try snare.render(allocator, prng.random(), 44100, 1, 1.0, 13230, 13230);
     defer allocator.free(samples);
 
     try std.testing.expectEqual(@as(usize, 13230), samples.len);
@@ -76,10 +79,10 @@ test "the same seed gives the same hit, and a cut hit is the start of the full h
     const snare: inner(f64) = .{};
 
     var a = std.Random.DefaultPrng.init(42);
-    const full = try snare.render(allocator, a.random(), 44100, 0.9, 8000, 8000);
+    const full = try snare.render(allocator, a.random(), 44100, 1, 0.9, 8000, 8000);
     defer allocator.free(full);
     var b = std.Random.DefaultPrng.init(42);
-    const cut = try snare.render(allocator, b.random(), 44100, 0.9, 8000, 2500);
+    const cut = try snare.render(allocator, b.random(), 44100, 1, 0.9, 8000, 2500);
     defer allocator.free(cut);
 
     try std.testing.expectEqualSlices(f64, full[0..2500], cut);

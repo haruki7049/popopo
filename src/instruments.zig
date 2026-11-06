@@ -66,7 +66,7 @@ fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, fr
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.
 fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
     var prng = seeded(0x5a7e, note.timing);
-    return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
+    return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
 }
 
 /// One string of the left guitar; the root and the fifth are two such bodies.
