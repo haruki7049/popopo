@@ -107,6 +107,7 @@ fn build_sandbox(
 ) !void {
     const paths_names: []const struct { []const u8, []const u8 } = &.{
         .{ "sandbox/kick-mono.zig", "kick-mono.wav" },
+        .{ "sandbox/kick-stereo.zig", "kick-stereo.wav" },
     };
 
     inline for (paths_names) |pn| {
