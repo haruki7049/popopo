@@ -41,10 +41,15 @@ pub fn build(b: *std.Build) !void {
     try imports.append(b.allocator, pitches_import);
 
     for (module_names) |name| {
+        // The timbre module is an exception because I wanna create .wave method for each timbres
+        const inner_imports: []const std.Build.Module.Import =
+            if (std.mem.eql(u8, name, "timbre")) &.{lightmix_import} else &.{};
+
         const module = b.createModule(.{
             .root_source_file = b.path(b.fmt("modules/{s}/root.zig", .{name})),
             .target = target,
             .optimize = optimize,
+            .imports = inner_imports,
         });
         try imports.append(b.allocator, .{ .name = name, .module = module });
 
