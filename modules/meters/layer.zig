@@ -205,8 +205,8 @@ fn LayerOf(comptime S: type) type {
             return self.extent != 0.0 or self.origins.len != 0;
         }
 
-        /// The layer type that zipping with the layer type `L` gives. A name used on both sides is a compile error.
-        pub fn Zip(comptime L: type) type {
+        /// The layer type that zipping with `L` gives. A name used on both sides is a compile error.
+        fn Zipped(comptime L: type) type {
             const all = specs ++ @typeInfo(L.Spec).@"struct".fields;
             var names: [all.len][]const u8 = undefined;
             var types: [all.len]type = undefined;
@@ -248,14 +248,14 @@ fn LayerOf(comptime S: type) type {
         ///
         /// Memory: borrows the slices of both layers. Only a broadcast allocates, with `allocator`,
         /// the copies of the broadcast element; the caller owns them.
-        pub fn zip(self: Self, allocator: std.mem.Allocator, other: anytype) (ZipError || std.mem.Allocator.Error)!Zip(@TypeOf(other)) {
+        pub fn zip(self: Self, allocator: std.mem.Allocator, other: anytype) (ZipError || std.mem.Allocator.Error)!Zipped(@TypeOf(other)) {
             if (self.count() != other.count()) {
                 if (self.scalar()) return (try self.broadcast(allocator, other.count())).zip(allocator, other);
                 if (other.scalar()) return self.zip(allocator, try other.broadcast(allocator, self.count()));
                 return error.MismatchedCount;
             }
 
-            var result: Zip(@TypeOf(other)) = .{ .columns = undefined };
+            var result: Zipped(@TypeOf(other)) = .{ .columns = undefined };
             inline for (fields) |field| @field(result.columns, field.name) = @field(self.columns, field.name);
             inline for (@typeInfo(@TypeOf(other).Item).@"struct".fields) |field| {
                 @field(result.columns, field.name) = @field(other.columns, field.name);

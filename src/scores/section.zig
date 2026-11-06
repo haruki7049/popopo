@@ -8,7 +8,7 @@ const Scores = @import("./scores.zig");
 const Section = @This();
 
 pub const Guitar = struct {
-    root: ?lines.String = null,
+    root: ?lines.Guitar = null,
 };
 
 pub const Drum = struct {
