@@ -1,0 +1,9 @@
+.{
+    .columns = .{
+        .volume = .{
+            .{ .amount = 1.0 },
+        },
+    },
+
+    .extent = 0.0,
+}
