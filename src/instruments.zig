@@ -60,7 +60,7 @@ fn guitarTimble(allocator: std.mem.Allocator, note: GuitarNote, length: usize, f
 
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.
 fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
-    return kick_timbre.render(allocator, configs.SAMPLE_RATE, note.volume, length, frames);
+    return kick_timbre.render(allocator, configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
 }
 
 /// Sounds the left guitar at the pitch, palm muting and volume of the note.

@@ -11,8 +11,6 @@ pub fn inner(comptime T: type) type {
 
         const Error = std.mem.Allocator.Error;
 
-        const CHANNELS: u16 = 1; // Mono
-
         /// Pitch of the body when the beater hits, in Hz.
         start_frequency: T = 165.0,
         /// Pitch the body settles to, in Hz.
@@ -30,7 +28,7 @@ pub fn inner(comptime T: type) type {
 
         /// Returns the first `frames` frames (mono) of a hit at `volume` that sounds `length`
         /// frames if nothing cuts it. Frames past `length` are silent. The caller owns the samples.
-        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, volume: T, length: usize, frames: usize) Self.Error![]T {
+        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error![]T {
             const samples = try allocator.alloc(T, frames);
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
@@ -39,7 +37,7 @@ pub fn inner(comptime T: type) type {
             var tick_low: dsp.Oscillator(T) = .{};
             var tick_high: dsp.Oscillator(T) = .{};
 
-            for (samples, 0..) |*sample, i| {
+            for (0..samples.len / channels) |i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
                 const frequency = self.end_frequency + (self.start_frequency - self.end_frequency) * dsp.decay(T, t, self.sweep);
 
@@ -47,19 +45,22 @@ pub fn inner(comptime T: type) type {
                 const tick = (0.6 * tick_low.sine(2100.0, rate) + 0.4 * tick_high.sine(3900.0, rate)) * dsp.decay(T, t, 0.004);
                 const hit = dsp.saturate(T, thump + self.click * tick, self.punch);
 
-                sample.* = volume * hit * dsp.tail(T, i, length, release_frames);
+                for (0..channels) |j| {
+                    const value = volume * hit * dsp.tail(T, i, length, release_frames);
+                    samples[i * channels + j] = value;
+                }
             }
             return samples;
         }
 
-        pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
-            const samples = try self.render(allocator, sample_rate, volume, length, frames);
+        pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
+            const samples = try self.render(allocator, sample_rate, channels, volume, length, frames);
 
             return .{
                 .samples = samples,
                 .allocator = allocator,
                 .sample_rate = sample_rate,
-                .channels = CHANNELS,
+                .channels = channels,
             };
         }
     };
