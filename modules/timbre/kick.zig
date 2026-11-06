@@ -29,7 +29,7 @@ pub fn inner(comptime T: type) type {
         /// Returns the first `frames` frames (mono) of a hit at `volume` that sounds `length`
         /// frames if nothing cuts it. Frames past `length` are silent. The caller owns the samples.
         pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error![]T {
-            const samples = try allocator.alloc(T, frames);
+            const samples = try allocator.alloc(T, frames * channels);
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
@@ -88,6 +88,25 @@ test "a cut hit is the start of the full hit" {
     const cut = try kick.render(allocator, 44100, 1, 0.8, 10000, 3000);
     defer allocator.free(cut);
     try std.testing.expectEqualSlices(f64, full[0..3000], cut);
+}
+
+test "The frames of stereo samples is the double with mono samples" {
+    const SAMPLE_RATE: u32 = 44100;
+    const VOLUME: f64 = 1.0;
+    const FRAMES: usize = 15345;
+    const LENGTH: usize = FRAMES;
+    const MONO: u16 = 1;
+    const STEREO: u16 = 2;
+
+    const allocator = std.testing.allocator;
+    const kick: inner(f64) = .{};
+    const mono = try kick.render(allocator, SAMPLE_RATE, MONO, VOLUME, LENGTH, FRAMES);
+    defer allocator.free(mono);
+    const stereo = try kick.render(allocator, SAMPLE_RATE, STEREO, VOLUME, LENGTH, FRAMES);
+    defer allocator.free(stereo);
+
+    try std.testing.expectEqual(mono.len, FRAMES);
+    try std.testing.expectEqual(stereo.len, mono.len * 2);
 }
 
 test {
