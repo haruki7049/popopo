@@ -1,6 +1,7 @@
 //! Rock snare drum: two shell modes, a noise crack, and band-limited noise for the wires, driven.
 
 const std = @import("std");
+const lightmix = @import("lightmix");
 const dsp = @import("./dsp.zig");
 
 /// Returns the snare type for samples of type `T`. The fields are the parameters of the timbre.
@@ -58,6 +59,17 @@ pub fn inner(comptime T: type) type {
             }
             return samples;
         }
+
+        pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
+            const samples = try self.render(allocator, sample_rate, channels, volume, length, frames);
+
+            return .{
+                .samples = samples,
+                .allocator = allocator,
+                .sample_rate = sample_rate,
+                .channels = channels,
+            };
+        }
     };
 }
 
@@ -86,6 +98,27 @@ test "the same seed gives the same hit, and a cut hit is the start of the full h
     defer allocator.free(cut);
 
     try std.testing.expectEqualSlices(f64, full[0..2500], cut);
+}
+
+test "The frames of stereo samples is the double with mono samples" {
+    const SAMPLE_RATE: u32 = 44100;
+    const VOLUME: f64 = 1.0;
+    const FRAMES: usize = 15345;
+    const LENGTH: usize = FRAMES;
+    const MONO: u16 = 1;
+    const STEREO: u16 = 2;
+
+    const allocator = std.testing.allocator;
+    var prng = std.Random.DefaultPrng.init(7);
+    const snare: inner(f64) = .{};
+
+    const mono = try snare.render(allocator, prng.random(), SAMPLE_RATE, MONO, VOLUME, LENGTH, FRAMES);
+    defer allocator.free(mono);
+    const stereo = try snare.render(allocator, prng.random(), SAMPLE_RATE, STEREO, VOLUME, LENGTH, FRAMES);
+    defer allocator.free(stereo);
+
+    try std.testing.expectEqual(mono.len, FRAMES);
+    try std.testing.expectEqual(stereo.len, mono.len * 2);
 }
 
 test {
