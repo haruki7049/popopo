@@ -1,7 +1,83 @@
 const std = @import("std");
+const body = @import("body");
 const timbre = @import("timbre");
 const lightmix = @import("lightmix");
 const meters = @import("meters");
+const mix = @import("mix");
+const perform = @import("perform");
+
+const instruments = struct {
+    const T = configs.T;
+
+    /// The procedure for vibrating bodies whose resolved notes are `R`.
+    pub fn Procedure(comptime R: type) type {
+        return perform.Procedure(T, R, body, .timing);
+    }
+
+    const GuitarNote = scores.lines.Guitar.Resolved;
+    const HitNote = scores.lines.Hit.Resolved;
+
+    /// Seconds to frames.
+    fn toFrames(seconds: T) usize {
+        return @intFromFloat(@round(seconds * @as(T, @floatFromInt(configs.SAMPLE_RATE))));
+    }
+
+    /// A generator for the noise of one note, seeded by the body and by where the note starts, so
+    /// the waveform of a note depends on nothing else.
+    fn seeded(salt: u64, start: usize) std.Random.DefaultPrng {
+        return .init(salt ^ @as(u64, start));
+    }
+
+    /// A drum sounds for `seconds` unless its volume is zero.
+    fn drumLength(note: HitNote) usize {
+        const SECONDS: usize = 1;
+
+        return if (note.volume > 0.0) toFrames(SECONDS) else 0;
+    }
+
+    /// The kick, with a shorter decay than the default, so it has died away by the end of its 0.55 s.
+    const kick_timbre: timbre.Kick(T) = .{ .decay = 0.17 };
+    /// The snare with its default settings.
+    const snare_timbre: timbre.Snare(T) = .{};
+    /// The cymbals; the closed and open hi-hat and the crash are its settings.
+    const Cymbal = timbre.Cymbal(T);
+    /// The left guitar.
+    const guitar_timbre: timbre.Guitar(T) = .{};
+
+    /// A muted string is lifted early; an open one rings for its whole duration.
+    fn guitarLength(note: GuitarNote) usize {
+        if (note.volume == 0.0) return 0;
+        const held = 1.0 - 0.25 * note.mute;
+        return @intFromFloat(@round(@as(T, @floatFromInt(note.duration)) * held));
+    }
+
+    /// Sounds the left guitar at the pitch, palm muting and volume of the note.
+    fn guitarTimble(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
+        return guitar_timbre.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
+    }
+
+    /// Sounds the left guitar at the pitch, palm muting and volume of the note.
+    fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
+        return kick_timbre.render(allocator, configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
+    }
+
+    /// Sounds the left guitar at the pitch, palm muting and volume of the note.
+    fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
+        var prng = seeded(0x5a7e, note.timing);
+        return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
+    }
+
+    /// One string of the left guitar; the root and the fifth are two such bodies.
+    pub const guitar: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = guitarTimble };
+
+    pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
+
+    pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
+
+    test {
+        std.testing.refAllDecls(@This());
+    }
+};
 
 const primitives = struct {
     const Timing = struct {
@@ -86,19 +162,115 @@ const configs = struct {
     pub const PEAK: T = 0.89;
 };
 
-pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
-    const volume: configs.T = 1.0;
-    const length = configs.SAMPLE_RATE * 1;
-    const frames = length;
-    const allocator = init.arena.allocator();
-    const kick = timbre.Kick(configs.T){};
+const scores = struct {
+    const Scores = struct {
+        const Drum = struct {
+            kick: lines.Hit,
+            snare: lines.Hit,
+        };
 
-    return kick.wave(
-        allocator,
-        configs.SAMPLE_RATE,
-        configs.CHANNELS,
-        volume,
-        length,
-        frames,
-    );
+        drum: Drum,
+    };
+
+    const Section = struct {
+        const Drum = struct {
+            kick: ?lines.Hit = null,
+            snare: ?lines.Hit = null,
+        };
+
+        /// Length of this section in beats; every part written in it must last exactly this long.
+        extent: f64,
+
+        drum: Drum = .{},
+    };
+
+    const MusicPart = enum {
+        introduction,
+    };
+
+    pub fn compose(allocator: std.mem.Allocator) !Scores {
+        var all: std.ArrayList(Section) = .empty;
+        inline for (@typeInfo(MusicPart).@"enum".fields) |field| {
+            const part: MusicPart = @enumFromInt(field.value);
+            try all.appendSlice(allocator, try sections(allocator, part));
+        }
+
+        return Section.concat(allocator, all.items);
+    }
+
+    fn sections(allocator: std.mem.Allocator, part: MusicPart) ![]const Section {
+        return switch (part) {
+            .introduction => introduction(allocator),
+        };
+    }
+
+    fn introduction(allocator: std.mem.Allocator) ![]const Section {}
+};
+
+/// Tempo, meter and sample rate every primitive resolves against.
+const context: meters.Context = .{
+    .bpm = configs.BPM,
+    .sample_rate = configs.SAMPLE_RATE,
+    .time_signature = .{
+        .numerator = configs.BEATS_PER_BAR,
+        .denominator = configs.BEAT_VALUE,
+    },
+};
+
+pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
+    const allocator = init.arena.allocator();
+    const samples: []configs.T = try render(allocator);
+
+    return lightmix.Wave(configs.T){
+        .samples = samples,
+        .allocator = allocator,
+        .sample_rate = configs.SAMPLE_RATE,
+        .channels = configs.CHANNELS,
+    };
+}
+
+fn render(allocator: std.mem.Allocator) ![]configs.T {
+    const written: scores.Scores = try scores.compose(allocator);
+
+    var mixer: mix.Mixer(configs.T) = try .init(allocator, configs.CHANNELS);
+    defer mixer.deinit();
+
+    try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
+    try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
+
+    // The piece lasts as long as its timeline; a ringing crash may run past it.
+    const end = try max(scores.Scores, written, context);
+    const samples = try mixer.finish(end);
+    mix.normalize(configs.T, samples, configs.PEAK);
+    return samples;
+}
+
+fn max(comptime S: type, written: S, ctx: meters.Context) !primitives.Timing.ResolveT {
+    // f64 is the meters.Layer(...).extent type
+    const ExtentT = f64;
+    var maxExtent: ExtentT = written.base.root.extent;
+
+    inline for (@typeInfo(S).@"struct".fields) |group| {
+        inline for (@typeInfo(group.type).@"struct".fields) |part| {
+            const extent: ExtentT = @field(@field(@field(written, group.name), part.name), "extent");
+
+            if (maxExtent < extent)
+                maxExtent = extent;
+        }
+    }
+
+    const timing: primitives.Timing = .{ .beat = maxExtent };
+    return try timing.resolve(ctx);
+}
+
+/// Resolves the score of one vibrating body and runs the procedure on it into `bus`.
+fn play(
+    comptime L: type,
+    allocator: std.mem.Allocator,
+    layer: L,
+    instrument: instruments.Procedure(L.Resolved).Body,
+    bus: mix.Mixer(configs.T).Bus,
+) !void {
+    const notes = try layer.resolve(allocator, context);
+    try instruments.Procedure(L.Resolved).run(allocator, instrument, notes, configs.SAMPLE_RATE, bus);
 }
