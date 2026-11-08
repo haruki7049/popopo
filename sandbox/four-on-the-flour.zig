@@ -91,13 +91,13 @@ const primitives = struct {
         beat: f64 = 0.0,
 
         /// A frame position, counted from the start of the score.
-        const ResolveT = usize;
+        pub const ResolveT = usize;
 
         /// Resolves this timing to a frame position: `ctx.origin` beats, plus `bar` bars, plus `beat`
         /// beats, rounded to the nearest frame once. Returns `error.InvalidPosition` for a beat that is
         /// NaN, negative or infinite or a position beyond a `usize`, and a `tempo.Error` for an invalid
         /// context.
-        fn resolve(self: Self, ctx: meters.Context) (Self.Error || meters.tempo.Error)!ResolveT {
+        pub fn resolve(self: Self, ctx: meters.Context) (Self.Error || meters.tempo.Error)!ResolveT {
             // Written as a negation so that NaN is rejected too; infinity is caught below.
             if (!(self.beat >= 0.0)) return error.InvalidPosition;
 
@@ -114,10 +114,10 @@ const primitives = struct {
         value: configs.T,
 
         /// A linear level, handed to the timbre as its volume.
-        const ResolveT = configs.T;
+        pub const ResolveT = configs.T;
 
         /// Resolves to `value` as it is. Ignores `ctx`.
-        fn resolve(self: Volume, ctx: meters.Context) ResolveT {
+        pub fn resolve(self: Volume, ctx: meters.Context) ResolveT {
             _ = ctx;
             return self.value;
         }
