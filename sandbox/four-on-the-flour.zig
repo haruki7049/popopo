@@ -133,17 +133,6 @@ const lines = struct {
     const Hit = thin.Timing.Zip(thin.Volume);
 };
 
-const sheets = struct {
-    const timing = struct {
-        const Quarter: lines.thin.Timing = @import("./four-on-the-flour/timing-quarter.zon");
-        const Third: lines.thin.Timing = @import("./four-on-the-flour/timing-third.zon");
-    };
-
-    const volume = struct {
-        const Default: lines.thin.Volume = @import("./four-on-the-flour/volume-default.zon");
-    };
-};
-
 /// Song-wide constants: tempo, meter and audio format.
 const configs = struct {
     /// Tempo in quarter notes per minute.
@@ -163,6 +152,19 @@ const configs = struct {
 };
 
 const scores = struct {
+    const primitives = struct {
+        const timing = struct {
+            const Quarter: lines.thin.Timing = @import("./four-on-the-flour/timing-quarter.zon");
+            const Third: lines.thin.Timing = @import("./four-on-the-flour/timing-third.zon");
+        };
+
+        const volume = struct {
+            const Default: lines.thin.Volume = @import("./four-on-the-flour/volume-default.zon");
+        };
+    };
+
+    fn fotf(allocator: std.mem.Allocator) std.mem.Allocator.Error![]const Section {}
+
     const Scores = struct {
         const Drum = struct {
             kick: lines.Hit,
@@ -173,6 +175,8 @@ const scores = struct {
     };
 
     const Section = struct {
+        const Self = @This();
+
         const Drum = struct {
             kick: ?lines.Hit = null,
             snare: ?lines.Hit = null,
@@ -182,6 +186,28 @@ const scores = struct {
         extent: f64,
 
         drum: Drum = .{},
+
+        /// Places `sections` one after another and gives the score of each vibrating body.
+        /// Returns `error.MismatchedExtent` when a part does not last as long as its section.
+        pub fn concat(allocator: std.mem.Allocator, sections: []const Self) !Scores {
+            var result: Scores = undefined;
+
+            // Walks Scores.<group>.<part>, so Section must have the same names as Scores.
+            inline for (@typeInfo(Scores).@"struct".fields) |group| {
+                inline for (@typeInfo(group.type).@"struct".fields) |part| {
+                    const L = part.type;
+                    const parts = try allocator.alloc(L, sections.len);
+                    for (sections, parts) |section, *slot| {
+                        const written = @field(@field(section, group.name), part.name);
+                        slot.* = written orelse L.empty(section.extent);
+                        if (slot.extent != section.extent) return error.MismatchedExtent;
+                    }
+                    @field(@field(result, group.name), part.name) = try L.join(allocator, parts);
+                }
+            }
+
+            return result;
+        }
     };
 
     const MusicPart = enum {
