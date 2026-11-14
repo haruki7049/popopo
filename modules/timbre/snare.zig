@@ -32,12 +32,12 @@ pub fn inner(comptime T: type) type {
         /// Time constant of the wires, in seconds.
         wire_decay: T = 0.16,
         /// Level of the initial crack.
-        crack: T = 0.6,
+        crack: T = 0.35,
         /// Saturation of the whole hit.
-        drive: T = 2.0,
-        /// Level of the hit going into the saturation. Well below 1, the saturation bends the peaks
-        /// instead of flattening them. It changes the loudness and how hard the hit is saturated,
-        /// not the `volume` of a note.
+        drive: T = 1.2,
+        /// Level of the hit going into the saturation, which is `tanh`, so no sample passes `volume`.
+        /// The lower it is, the less the peaks are bent. It changes the loudness of the drum and
+        /// how hard the hit is saturated, not the `volume` of a note.
         input_gain: T = 0.3,
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.008,
@@ -101,7 +101,7 @@ pub fn inner(comptime T: type) type {
                 const hit = shell + self.wires * wires + self.crack * crack;
                 const onset = dsp.rise(T, t, 0.0004);
 
-                const value = volume * dsp.saturate(T, hit * onset * self.input_gain, self.drive) * dsp.tail(T, i, length, release_frames);
+                const value = volume * std.math.tanh(self.drive * self.input_gain * hit * onset) * dsp.tail(T, i, length, release_frames);
                 for (0..channels) |j|
                     samples[i * channels + j] = value;
             }
