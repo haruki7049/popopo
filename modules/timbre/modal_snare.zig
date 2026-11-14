@@ -61,7 +61,7 @@ pub fn inner(comptime T: type) type {
         fundamental: T = 200.0,
         /// Loss that is the same at every frequency, in 1/s: the amplitude of a mode falls by
         /// `exp(-sigma0 * t)` at least.
-        sigma0: T = 6.0,
+        sigma0: T = 3.0,
         /// Loss that grows with the square of the frequency, in s: a mode of angular frequency `w`
         /// has the loss `sigma0 + sigma1 * w^2`, so that the high modes die away first.
         sigma1: T = 1.0e-7,
@@ -73,10 +73,10 @@ pub fn inner(comptime T: type) type {
         oversampling: usize = 2,
         /// Where the head is struck, as the share of the radius from the center, and the angle in
         /// radians. The center excites the circular modes only.
-        strike_radius: T = 0.4,
+        strike_radius: T = 0.25,
         strike_angle: T = 0.3,
         /// Where the sound is picked up, with the same meaning.
-        pickup_radius: T = 0.6,
+        pickup_radius: T = 0.35,
         pickup_angle: T = 1.1,
         /// Peak force of the strike in N, and its duration in seconds.
         strike_force: T = 20.0,
@@ -84,7 +84,7 @@ pub fn inner(comptime T: type) type {
         /// Number of wires. Zero leaves the head alone, a plain drum.
         wire_count: usize = 8,
         /// Mass of a wire in kg.
-        wire_mass: T = 0.0005,
+        wire_mass: T = 0.0002,
         /// Frequency in Hz of the oscillation of a wire, and its loss in 1/s.
         wire_frequency: T = 150.0,
         wire_sigma: T = 30.0,
@@ -93,7 +93,7 @@ pub fn inner(comptime T: type) type {
         contact_exponent: T = 1.5,
         /// Scale from the velocity of the pickup in m/s to the samples, calibrated so that a hit at
         /// the default settings peaks near 0.7.
-        gain: T = 0.18,
+        gain: T = 0.143,
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.01,
 
