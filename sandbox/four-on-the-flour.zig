@@ -210,20 +210,36 @@ const scores = struct {
         };
     }
 
-    /// Four bars of four-on-the-floor: the kick sounds on every beat, the snare on the second and fourth beats.
-    fn introduction(allocator: std.mem.Allocator) ![]const Section {
+    /// The drum parts of a four-on-the-floor. It names only `lines.Hit`, so the function below
+    /// does not depend on `Section`.
+    const FourOnTheFloor = struct {
+        kick: lines.Hit,
+        snare: lines.Hit,
+    };
+
+    /// Writes `bars` bars of four-on-the-floor: the kick sounds on every beat, the snare on the
+    /// second and fourth beats. Both parts last `bars` bars, so `kick.extent` is the length of
+    /// the section they are written in.
+    fn fourOnTheFloor(allocator: std.mem.Allocator, bars: usize) !FourOnTheFloor {
         // One bar of each, pairing its timings with the one shared volume. `primitives` alone is
         // ambiguous here, as the file has another one, so it is reached through `scores`.
         const kick_bar = try scores.primitives.timing.Quarter.zip(allocator, scores.primitives.volume.Default);
         const snare_bar = try scores.primitives.timing.Backbeat.zip(allocator, scores.primitives.volume.Default);
 
+        return .{
+            .kick = try kick_bar.repeat(allocator, bars),
+            .snare = try snare_bar.repeat(allocator, bars),
+        };
+    }
+
+    /// Four bars of four-on-the-floor.
+    fn introduction(allocator: std.mem.Allocator) ![]const Section {
+        const drum = try fourOnTheFloor(allocator, 4);
+
         return allocator.dupe(Section, &.{
             .{
-                .extent = 16.0,
-                .drum = .{
-                    .kick = try kick_bar.repeat(allocator, 4),
-                    .snare = try snare_bar.repeat(allocator, 4),
-                },
+                .extent = drum.kick.extent,
+                .drum = .{ .kick = drum.kick, .snare = drum.snare },
             },
         });
     }
