@@ -20,7 +20,7 @@ pub fn inner(comptime T: type) type {
         /// Time constant of the shell, in seconds.
         shell_decay: T = 0.07,
         /// Level of the wires.
-        wires: T = 0.85,
+        wires: T = 1.7,
         /// How much the wires follow the motion of the shell, from 0 (they ring on their own, as
         /// noise with a decay) to 1 (they sound only while the head moves).
         wire_coupling: T = 0.9,
