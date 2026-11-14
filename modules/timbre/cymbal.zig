@@ -1,11 +1,18 @@
-//! Cymbals: a bank of inharmonic square partials and noise, high-passed, with a decay. The closed
-//! hi-hat, the open hi-hat and the crash are three settings of the same timbre.
+//! Cymbals: a thin metal plate struck once, solved on a grid (see `plate.zig`), mixed with noise,
+//! high-passed, with a decay. The closed hi-hat, the open hi-hat and the crash are three settings of
+//! the same timbre.
+//!
+//! The metal is the velocity of the plate, whose many inharmonic partials are the shimmer of a
+//! cymbal. The noise stays as the sizzle that a linear plate alone does not have. Neither the plate
+//! nor the settings are checked by ear.
 
 const std = @import("std");
 const dsp = @import("./dsp.zig");
+const Plate = @import("./plate.zig").inner;
 
-/// Frequencies of the metallic partials, in Hz. Chosen to share no simple ratio.
-const partials = [_]f64{ 296.3, 417.1, 538.9, 607.7, 741.9, 883.4 };
+/// Scale of the plate. It gives the plate, after the filters, about the level and the decay of the
+/// metal it replaced (the sum of square partials): within a factor of 1.5 over the first 0.3 s.
+const plate_scale = 1.0;
 
 /// Returns the cymbal type for samples of type `T`. The fields are the parameters of the timbre.
 pub fn inner(comptime T: type) type {
@@ -18,7 +25,7 @@ pub fn inner(comptime T: type) type {
         tone: T,
         /// Cutoff of the low-pass that softens the top, in Hz.
         brightness: T,
-        /// Share of the metallic partials against the noise, from 0 to 1.
+        /// Share of the plate against the noise, from 0 to 1.
         metal: T,
         /// Rise at the start of the hit, in seconds.
         attack: T = 0.0005,
@@ -37,10 +44,21 @@ pub fn inner(comptime T: type) type {
         /// seed. Frames past `length` are silent. The caller owns the samples.
         pub fn render(self: Self, allocator: std.mem.Allocator, random: std.Random, sample_rate: u32, volume: T, length: usize, frames: usize) std.mem.Allocator.Error![]T {
             const samples = try allocator.alloc(T, frames);
+            errdefer allocator.free(samples);
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
-            var oscillators = [_]dsp.Oscillator(T){.{}} ** partials.len;
+            // The plate loses the amplitude `exp(-t / decay)` at least, as the noise does. It is not
+            // faded here, the fade comes after the filters. A plate too small for the sample rate
+            // gives no metal, only the noise.
+            var plate: Plate(T) = .{ .sigma0 = 1.0 / self.decay, .sigma1 = 2.0e-5, .release = 0.0 };
+            const metal_samples: ?[]T = plate.render(allocator, sample_rate, 1, 1.0, length, frames) catch |err| switch (err) {
+                error.OutOfMemory => return error.OutOfMemory,
+                error.GridTooSmall => null,
+            };
+            defer if (metal_samples) |m| allocator.free(m);
+
+            const share: T = if (metal_samples == null) 0.0 else self.metal;
             var high_a = dsp.Biquad(T).init(.highpass, self.tone, 0.707, rate);
             var high_b = dsp.Biquad(T).init(.highpass, self.tone, 0.707, rate);
             var top = dsp.Biquad(T).init(.lowpass, self.brightness, 0.707, rate);
@@ -48,14 +66,11 @@ pub fn inner(comptime T: type) type {
             for (samples, 0..) |*sample, i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
 
-                var metal: T = 0.0;
-                for (&oscillators, partials) |*oscillator, frequency| metal += oscillator.square(@floatCast(frequency), rate);
-                metal /= @floatFromInt(partials.len);
-                const noise = random.float(T) * 2.0 - 1.0;
+                const metal: T = if (metal_samples) |m| plate_scale * m[i] else 0.0;
+                const noise = (random.float(T) * 2.0 - 1.0) * dsp.decay(T, t, self.decay);
 
-                const sizzle = top.process(high_b.process(high_a.process(self.metal * metal + (1.0 - self.metal) * noise)));
-                const envelope = dsp.rise(T, t, self.attack) * dsp.decay(T, t, self.decay);
-                sample.* = volume * 2.5 * sizzle * envelope * dsp.tail(T, i, length, release_frames);
+                const sizzle = top.process(high_b.process(high_a.process(share * metal + (1.0 - share) * noise)));
+                sample.* = volume * 2.5 * sizzle * dsp.rise(T, t, self.attack) * dsp.tail(T, i, length, release_frames);
             }
             return samples;
         }
@@ -89,6 +104,38 @@ test "the open hi-hat rings longer than the closed one" {
         for (samples[4410..]) |s| energy[k] += s * s;
     }
     try std.testing.expect(energy[1] > 100.0 * energy[0]);
+}
+
+test "with the plate alone the sound does not depend on the seed, and it is not silent" {
+    const allocator = std.testing.allocator;
+    var cymbal = inner(f64).open;
+    cymbal.metal = 1.0;
+
+    var first = std.Random.DefaultPrng.init(1);
+    const a = try cymbal.render(allocator, first.random(), 44100, 1.0, 4000, 4000);
+    defer allocator.free(a);
+    var second = std.Random.DefaultPrng.init(2);
+    const b = try cymbal.render(allocator, second.random(), 44100, 1.0, 4000, 4000);
+    defer allocator.free(b);
+
+    try std.testing.expectEqualSlices(f64, a, b);
+    var peak: f64 = 0.0;
+    for (a) |s| peak = @max(peak, @abs(s));
+    try std.testing.expect(peak > 0.01);
+}
+
+test "a cut hit is the start of the full hit" {
+    const allocator = std.testing.allocator;
+    const cymbal = inner(f64).closed;
+
+    var first = std.Random.DefaultPrng.init(7);
+    const full = try cymbal.render(allocator, first.random(), 44100, 0.8, 5000, 5000);
+    defer allocator.free(full);
+    var second = std.Random.DefaultPrng.init(7);
+    const cut = try cymbal.render(allocator, second.random(), 44100, 0.8, 5000, 1500);
+    defer allocator.free(cut);
+
+    try std.testing.expectEqualSlices(f64, full[0..1500], cut);
 }
 
 test {
