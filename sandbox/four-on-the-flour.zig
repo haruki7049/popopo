@@ -38,6 +38,15 @@ const instruments = struct {
     const kick_timbre: timbre.Kick(T) = .{ .decay = 0.17 };
     /// The snare with its default settings.
     const snare_timbre: timbre.Snare(T) = .{};
+
+    /// The snare drum solved once by `solveSnare`, and read by every hit; the drum does not depend on
+    /// the note. Without it each hit solves the drum again, which gives the same sound more slowly.
+    var snare_response: ?timbre.Snare(T).Response = null;
+
+    /// Solves the snare for the longest hit, `frames` frames.
+    pub fn solveSnare(allocator: std.mem.Allocator, frames: usize) std.mem.Allocator.Error!void {
+        snare_response = try snare_timbre.respond(allocator, configs.SAMPLE_RATE, frames);
+    }
     /// The cymbals; the closed and open hi-hat and the crash are its settings.
     const Cymbal = timbre.Cymbal(T);
     /// The open hi-hat.
@@ -51,7 +60,8 @@ const instruments = struct {
     /// Sounds the snare at the volume of the note.
     fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
         var prng = seeded(0x5a7e, note.timing);
-        return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
+        const response = snare_response orelse return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
+        return snare_timbre.renderWith(allocator, configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames, response);
     }
 
     /// Sounds the open hi-hat at the volume of the note.
