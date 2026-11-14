@@ -43,16 +43,6 @@ const instruments = struct {
     /// The closed hi-hat.
     const hihat_timbre = Cymbal.closed;
 
-    /// The plate of the hi-hat, solved once by `solveHihat` and read by every hit; the plate does not
-    /// depend on the note. Without it each hit solves the plate again, which gives the same sound
-    /// more slowly.
-    var hihat_response: ?Cymbal.Response = null;
-
-    /// Solves the plate of the hi-hat for the longest hit, `frames` frames.
-    pub fn solveHihat(allocator: std.mem.Allocator, frames: usize) std.mem.Allocator.Error!void {
-        hihat_response = try hihat_timbre.respond(allocator, configs.SAMPLE_RATE, frames);
-    }
-
     /// Sounds the kick at the volume of the note.
     fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
         return kick_timbre.render(allocator, configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
@@ -75,8 +65,7 @@ const instruments = struct {
     /// Sounds the closed hi-hat at the volume of the note.
     fn hihatTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
         var prng = seeded(0x41a7, note.timing);
-        const response = hihat_response orelse return hihat_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
-        return hihat_timbre.renderWith(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames, response);
+        return hihat_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
     }
 
     pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
@@ -292,7 +281,6 @@ const context: meters.Context = .{
 
 pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
     const allocator = init.arena.allocator();
-    try instruments.solveHihat(allocator, instruments.toFrames(0.15));
     const samples: []configs.T = try render(allocator);
 
     return lightmix.Wave(configs.T){
