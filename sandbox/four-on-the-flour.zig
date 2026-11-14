@@ -40,21 +40,32 @@ const instruments = struct {
     const snare_timbre: timbre.Snare(T) = .{};
     /// The cymbals; the closed and open hi-hat and the crash are its settings.
     const Cymbal = timbre.Cymbal(T);
+    /// The open hi-hat.
+    const hihat_timbre = Cymbal.open;
 
-    /// Sounds the left guitar at the pitch, palm muting and volume of the note.
+    /// Sounds the kick at the volume of the note.
     fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
         return kick_timbre.render(allocator, configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
     }
 
-    /// Sounds the left guitar at the pitch, palm muting and volume of the note.
+    /// Sounds the snare at the volume of the note.
     fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
         var prng = seeded(0x5a7e, note.timing);
         return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
     }
 
+    /// Sounds the open hi-hat at the volume of the note.
+    fn hihatTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
+        var prng = seeded(0x41a7, note.timing);
+        return hihat_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
+    }
+
     pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
     pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
+
+    /// An open hi-hat rings until the next hit cuts it, as a hi-hat pedal closes it.
+    pub const hihat: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = hihatTimble };
 
     test {
         std.testing.refAllDecls(@This());
@@ -138,6 +149,7 @@ const scores = struct {
         const timing = struct {
             const Quarter: lines.thin.Timing = @import("./four-on-the-flour/timing-quarter.zon");
             const Backbeat: lines.thin.Timing = @import("./four-on-the-flour/timing-backbeat.zon");
+            const Offbeat: lines.thin.Timing = @import("./four-on-the-flour/timing-offbeat.zon");
         };
 
         const volume = struct {
@@ -149,6 +161,7 @@ const scores = struct {
         const Drum = struct {
             kick: lines.Hit,
             snare: lines.Hit,
+            hihat: lines.Hit,
         };
 
         drum: Drum,
@@ -160,6 +173,7 @@ const scores = struct {
         const Drum = struct {
             kick: ?lines.Hit = null,
             snare: ?lines.Hit = null,
+            hihat: ?lines.Hit = null,
         };
 
         /// Length of this section in beats; every part written in it must last exactly this long.
@@ -215,20 +229,24 @@ const scores = struct {
     const FourOnTheFloor = struct {
         kick: lines.Hit,
         snare: lines.Hit,
+        hihat: lines.Hit,
     };
 
     /// Writes `bars` bars of four-on-the-floor: the kick sounds on every beat, the snare on the
-    /// second and fourth beats. Both parts last `bars` bars, so `kick.extent` is the length of
-    /// the section they are written in.
+    /// second and fourth beats, and the open hi-hat on the off-beats, halfway between the beats.
+    /// All parts last `bars` bars, so `kick.extent` is the length of the section they are written
+    /// in.
     fn fourOnTheFloor(allocator: std.mem.Allocator, bars: usize) !FourOnTheFloor {
         // One bar of each, pairing its timings with the one shared volume. `primitives` alone is
         // ambiguous here, as the file has another one, so it is reached through `scores`.
         const kick_bar = try scores.primitives.timing.Quarter.zip(allocator, scores.primitives.volume.Default);
         const snare_bar = try scores.primitives.timing.Backbeat.zip(allocator, scores.primitives.volume.Default);
+        const hihat_bar = try scores.primitives.timing.Offbeat.zip(allocator, scores.primitives.volume.Default);
 
         return .{
             .kick = try kick_bar.repeat(allocator, bars),
             .snare = try snare_bar.repeat(allocator, bars),
+            .hihat = try hihat_bar.repeat(allocator, bars),
         };
     }
 
@@ -239,7 +257,7 @@ const scores = struct {
         return allocator.dupe(Section, &.{
             .{
                 .extent = drum.kick.extent,
-                .drum = .{ .kick = drum.kick, .snare = drum.snare },
+                .drum = .{ .kick = drum.kick, .snare = drum.snare, .hihat = drum.hihat },
             },
         });
     }
@@ -267,6 +285,9 @@ pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
     };
 }
 
+/// Level of the hi-hat bus; the hi-hat sits behind the kick and the snare.
+const HIHAT_GAIN: configs.T = 0.15;
+
 fn render(allocator: std.mem.Allocator) ![]configs.T {
     const written: scores.Scores = try scores.compose(allocator);
 
@@ -275,6 +296,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
 
     try play(lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
     try play(lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
+    try play(lines.Hit, allocator, written.drum.hihat, instruments.hihat, mixer.bus(.{ .gain = HIHAT_GAIN }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try max(scores.Scores, written, context);
