@@ -13,7 +13,8 @@
 //! stiffness constant of the plate. The grid is chosen at that limit, so it has as many nodes as
 //! the sample rate can use, and the highest partial is close to the Nyquist frequency.
 //!
-//! The model is linear: a plate struck hard does not pass energy on to higher partials as a real
+//! The defaults are a small, thick plate, which puts its partials where a hi-hat has them (about 8 kHz
+//! centroid). The model is linear: a plate struck hard does not pass energy on to higher partials as a real
 //! cymbal does. It has one plate and no contact between two plates, so it is not yet a hi-hat.
 
 const std = @import("std");
@@ -42,11 +43,11 @@ pub fn inner(comptime T: type) type {
 
         /// Width of the plate in meters. The grid covers a whole number of cells, so the plate may
         /// be shorter by less than one cell.
-        width: T = 0.3,
+        width: T = 0.08,
         /// Height of the plate in meters, with the same rule as the width.
-        height: T = 0.3,
+        height: T = 0.08,
         /// Thickness of the plate in meters.
-        thickness: T = 0.0008,
+        thickness: T = 0.0015,
         /// Young's modulus of the metal, in Pa. The default is a bronze.
         youngs_modulus: T = 1.1e11,
         /// Density of the metal, in kg/m^3.
@@ -55,10 +56,10 @@ pub fn inner(comptime T: type) type {
         poisson: T = 0.3,
         /// Loss that is the same at every frequency, in 1/s: the amplitude of a partial falls by
         /// `exp(-sigma0 * t)` at least.
-        sigma0: T = 6.0,
+        sigma0: T = 15.0,
         /// Loss that grows with the frequency, in s: a partial of angular frequency `w` has the
         /// loss `sigma0 + sigma1 * w / kappa`.
-        sigma1: T = 1.35e-3,
+        sigma1: T = 2.0e-4,
         /// Where the plate is struck, as a share of the width and of the height, from 0 to 1.
         strike_x: T = 0.31,
         strike_y: T = 0.43,
@@ -68,7 +69,7 @@ pub fn inner(comptime T: type) type {
         /// Peak force of the strike, in N.
         strike_force: T = 50.0,
         /// Duration of the strike, in seconds. A shorter strike excites higher partials.
-        strike_duration: T = 0.0005,
+        strike_duration: T = 0.00005,
         /// Scale from the velocity of the pickup in m/s to the samples, calibrated so that a hit
         /// at the default settings peaks near 1.
         gain: T = 1.0,
@@ -231,6 +232,9 @@ pub fn inner(comptime T: type) type {
 }
 
 /// The energy of `samples` at `frequency` Hz, by the Goertzel algorithm.
+/// A plate big and slow enough for the grid at the low sample rates the tests use.
+const big: inner(f64) = .{ .width = 0.3, .height = 0.3, .thickness = 0.0008, .sigma0 = 6.0, .sigma1 = 1.35e-3, .strike_duration = 0.0005 };
+
 fn goertzel(samples: []const f64, frequency: f64, rate: f64) f64 {
     const w = 2.0 * std.math.pi * frequency / rate;
     const coeff = 2.0 * @cos(w);
@@ -252,7 +256,7 @@ fn rms(samples: []const f64) f64 {
 
 test "render returns the frames asked for, starting and ending at zero" {
     const allocator = std.testing.allocator;
-    const plate: inner(f64) = .{};
+    const plate: inner(f64) = big;
     const samples = try plate.render(allocator, 8000, 1, 1.0, 2000, 2000);
     defer allocator.free(samples);
 
@@ -270,7 +274,7 @@ test "render returns the frames asked for, starting and ending at zero" {
 
 test "the frames of stereo samples is the double with mono samples, with the same sound in both" {
     const allocator = std.testing.allocator;
-    const plate: inner(f64) = .{};
+    const plate: inner(f64) = big;
 
     const mono = try plate.render(allocator, 8000, 1, 1.0, 1500, 1500);
     defer allocator.free(mono);
@@ -286,7 +290,7 @@ test "the frames of stereo samples is the double with mono samples, with the sam
 
 test "a cut hit is the start of the full hit" {
     const allocator = std.testing.allocator;
-    const plate: inner(f64) = .{};
+    const plate: inner(f64) = big;
 
     const full = try plate.render(allocator, 8000, 1, 0.9, 4000, 4000);
     defer allocator.free(full);
@@ -298,7 +302,7 @@ test "a cut hit is the start of the full hit" {
 
 test "the hit dies away" {
     const allocator = std.testing.allocator;
-    const plate: inner(f64) = .{};
+    const plate: inner(f64) = big;
     const frames: usize = 16000;
 
     const samples = try plate.render(allocator, 8000, 1, 1.0, frames, frames);
@@ -312,7 +316,8 @@ test "the grid keeps the scheme stable, whatever the loss" {
     const sigma1s = [_]f64{ 0.0, 1.35e-3, 0.05 };
 
     for (sigma1s) |sigma1| {
-        const plate: inner(f64) = .{ .sigma1 = sigma1 };
+        var plate = big;
+        plate.sigma1 = sigma1;
         const kappa = plate.stiffness();
         const k = 1.0 / 8000.0;
         const g = try plate.grid(8000);
@@ -331,7 +336,9 @@ test "the lowest partial is where the plate equation puts it" {
     const allocator = std.testing.allocator;
     const rate: u32 = 8000;
     // Little loss, so that the lowest partial stands out.
-    const plate: inner(f64) = .{ .sigma0 = 1.0, .sigma1 = 0.0 };
+    var plate = big;
+    plate.sigma0 = 1.0;
+    plate.sigma1 = 0.0;
     const g = try plate.grid(rate);
 
     // The lowest mode of a simply supported rectangular plate, of the size the grid covers.

@@ -12,10 +12,10 @@ const configs = struct {
     pub const T = f64;
 };
 
-/// One hit on a bare plate, for 3 seconds, to hear what the model gives before it is made a hi-hat.
+/// One hit on a small plate, for 1 second, to hear what the model gives before it is made a hi-hat.
 pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
     const volume: configs.T = 1.0;
-    const length = configs.SAMPLE_RATE * 3;
+    const length = configs.SAMPLE_RATE * 1;
     const frames = length;
     const allocator = init.arena.allocator();
     const plate = timbre.Plate(configs.T){};
