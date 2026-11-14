@@ -1,6 +1,7 @@
-//! Rock snare drum: two shell modes, a noise crack, and band-limited noise for the wires, driven.
-//! The wires are driven by the shell: their level follows the motion of the head, so the two sound
-//! as one drum, not as a tone with a hiss laid on it.
+//! Rock snare drum: the modes of a circular head, a noise crack, and the wires, driven.
+//! The wires are driven by the head. Their level follows its motion, and the head also throws a
+//! buzz of its own harmonics into them, so the two sound as one drum, not as a tone with a hiss
+//! laid on it.
 
 const std = @import("std");
 const lightmix = @import("lightmix");
@@ -13,20 +14,21 @@ pub fn inner(comptime T: type) type {
 
         const Error = std.mem.Allocator.Error;
 
-        /// Lower shell mode, in Hz.
+        /// Lowest mode of the head, in Hz. The other modes lie above it as in a circular membrane.
         shell_frequency: T = 182.0,
-        /// Upper shell mode as a ratio of the lower one.
-        shell_ratio: T = 1.62,
-        /// Time constant of the shell, in seconds.
+        /// Time constant of the lowest mode, in seconds. The higher modes die faster.
         shell_decay: T = 0.07,
+        /// How much of the motion of the head is thrown into the wires as a buzz at its own
+        /// harmonics, besides the noise.
+        wire_buzz: T = 4.0,
         /// Level of the wires.
-        wires: T = 1.7,
-        /// How much the wires follow the motion of the shell, from 0 (they ring on their own, as
-        /// noise with a decay) to 1 (they sound only while the head moves).
-        wire_coupling: T = 0.9,
+        wires: T = 3.5,
+        /// How much the wires follow the motion of the shell, from 0 (they keep ringing for
+        /// `wire_decay` after the head has stopped) to 1 (they sound only while the head moves).
+        wire_coupling: T = 0.85,
         /// How fast the wires settle after the head moves, in seconds. A time shorter than a cycle
         /// of the shell makes the wires buzz in step with it.
-        wire_follow: T = 0.004,
+        wire_follow: T = 0.002,
         /// Time constant of the wires, in seconds.
         wire_decay: T = 0.16,
         /// Level of the initial crack.
@@ -36,6 +38,11 @@ pub fn inner(comptime T: type) type {
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.008,
 
+        /// The modes of a circular membrane as ratios of the lowest one, the zeros of the Bessel
+        /// functions over the first: (0,1) (1,1) (2,1) (0,2) (3,1) (1,2) (4,1) (2,2) (0,3) (5,1)
+        /// (3,2) (6,1) (1,3) (4,2) (7,1) (2,3).
+        const mode_ratios = [_]T{ 1.0, 1.594, 2.136, 2.295, 2.653, 2.917, 3.156, 3.500, 3.598, 3.647, 4.059, 4.131, 4.230, 4.601, 4.610, 4.832 };
+
         /// Returns the first `frames` frames (mono) of a hit at `volume` that sounds `length`
         /// frames if nothing cuts it. The noise is drawn from `random`, so the caller decides the
         /// seed. Frames past `length` are silent. The caller owns the samples.
@@ -44,27 +51,47 @@ pub fn inner(comptime T: type) type {
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
-            var low: dsp.Oscillator(T) = .{};
-            var high: dsp.Oscillator(T) = .{};
+            var modes: [mode_ratios.len]dsp.Oscillator(T) = @splat(.{});
+            // Level of a mode: lower modes are stronger, and the strike does not excite them evenly,
+            // so the levels wobble in a fixed way. The sum bounds the shell at 1.
+            var levels: [mode_ratios.len]T = undefined;
+            var level_sum: T = 0.0;
+            for (mode_ratios, 0..) |ratio, k| {
+                levels[k] = (1.0 + 0.5 * @cos(2.3 * @as(T, @floatFromInt(k)))) / std.math.pow(T, ratio, 1.3);
+                level_sum += levels[k];
+            }
             var wire_band = dsp.Biquad(T).init(.bandpass, 3800.0, 0.55, rate);
             var wire_air = dsp.Biquad(T).init(.highpass, 1400.0, 0.707, rate);
             // The motion of the head as the wires feel it: its size, which falls slowly.
             var head: T = 0.0;
+            // The same, but the wires keep ringing after the head has stopped, for `wire_decay`.
+            var ring: T = 0.0;
+            const ring_keep: T = @exp(-1.0 / (@max(self.wire_decay, 1.0e-6) * rate));
             const follow_keep: T = @exp(-1.0 / (@max(self.wire_follow, 1.0e-6) * rate));
 
             for (0..samples.len / channels) |i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
                 // The head is tighter for a moment after the hit, so the shell starts a little sharp.
                 const bend = 1.0 + 0.12 * dsp.decay(T, t, 0.012);
-                const shell = (0.7 * low.sine(self.shell_frequency * bend, rate) +
-                    0.4 * high.sine(self.shell_frequency * self.shell_ratio * bend, rate)) * dsp.decay(T, t, self.shell_decay);
+                var shell: T = 0.0;
+                for (mode_ratios, 0..) |ratio, k| {
+                    // A mode of a higher pitch loses its energy faster.
+                    const tau = self.shell_decay / (1.0 + 0.5 * (ratio - 1.0));
+                    shell += levels[k] * modes[k].sine(self.shell_frequency * ratio * bend, rate) * dsp.decay(T, t, tau);
+                }
+                shell *= 1.1 / level_sum;
 
                 const noise = random.float(T) * 2.0 - 1.0;
                 // The wires are thrown by the head: they buzz where the head moves, and a little on
                 // their own for what is left of `wire_coupling`.
                 head = @max(@abs(shell) / 1.1, head * follow_keep);
-                const gate = self.wire_coupling * head + (1.0 - self.wire_coupling);
-                const wires = (wire_band.process(noise) + 0.5 * wire_air.process(noise)) * dsp.decay(T, t, self.wire_decay) * gate;
+                ring = @max(@abs(shell) / 1.1, ring * ring_keep);
+                const gate = self.wire_coupling * head + (1.0 - self.wire_coupling) * ring;
+                // The wires hit the head and the shell in turn, which turns its motion into a buzz at
+                // harmonics of it that reach up to where the wires sound.
+                const buzz = dsp.saturate(T, shell, 8.0) - shell;
+                const rattle = noise * gate + self.wire_buzz * buzz;
+                const wires = wire_band.process(rattle) + 0.5 * wire_air.process(rattle);
                 const crack = noise * dsp.decay(T, t, 0.005);
 
                 const hit = shell + self.wires * wires + self.crack * crack;
