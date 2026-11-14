@@ -31,16 +31,21 @@ fn sections(allocator: std.mem.Allocator, part: Part) ![]const Section {
     };
 }
 
+/// The kicks followed by as many beats of rest, so that they last twice as long.
+fn withRests(allocator: std.mem.Allocator, kicks: lines.Hit) !lines.Hit {
+    return kicks.concat(allocator, lines.Hit.empty(kicks.extent));
+}
+
 fn b(allocator: std.mem.Allocator) ![]const Section {
     const b_sheet = sheets.b.Gen(lines);
     const basics_sheets = sheets.basics.Gen(lines);
 
-    const kick_a = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
+    const kick_a = try (try withRests(allocator, basics_sheets.Drum.EightBeat0.Kicks)).repeat(allocator, 2);
     const kick_b = try b_sheet.Drum.EightBeat1.Kicks.repeat(allocator, 4);
     const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
     const base_root = try b_sheet.Base.WithoutThird.repeat(allocator, 4);
-    const melody_root = try b_sheet.Melody.MainPhrase.repeat(allocator, 1);
-    const melody_root_to_next = try b_sheet.Melody.ToNext.repeat(allocator, 1);
+    const melody_root = try b_sheet.Melody.Opening.concat(allocator, b_sheet.Melody.MainEnding);
+    const melody_root_to_next = try b_sheet.Melody.Opening.concat(allocator, b_sheet.Melody.ToNextEnding);
 
     const kick_to_next = b_sheet.Drum.ToNext.Kicks;
     const snare_to_next = b_sheet.Drum.ToNext.Snares;
@@ -56,14 +61,15 @@ fn a(allocator: std.mem.Allocator) ![]const Section {
     const a_sheet = sheets.a.Gen(lines);
     const basics_sheets = sheets.basics.Gen(lines);
 
-    const kick_with_rests = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
+    const kicks_with_rests = try withRests(allocator, basics_sheets.Drum.EightBeat0.Kicks);
+    const kick_with_rests = try kicks_with_rests.repeat(allocator, 2);
     const one_kick = basics_sheets.Drum.EightBeat0.Kicks;
     const one_snare = basics_sheets.Drum.EightBeat0.Snares;
     const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
     const base_root = try basics_sheets.Base.WithoutThird.repeat(allocator, 4);
     const melody_root = try a_sheet.Melody.MainPhrase.repeat(allocator, 1);
 
-    const kick_last = basics_sheets.Drum.EightBeat0.KicksWithRests;
+    const kick_last = kicks_with_rests;
     const snare_last = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 2);
     const base_root_last = try basics_sheets.Base.WithoutThird.repeat(allocator, 2);
     const melody_root_to_next = a_sheet.Melody.ToNext;
@@ -81,12 +87,13 @@ fn introduction(allocator: std.mem.Allocator) ![]const Section {
     const intro_sheets = sheets.introduction.Gen(lines);
     const basics_sheets = sheets.basics.Gen(lines);
 
-    const kick_with_rests = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
+    const kicks_with_rests = try withRests(allocator, basics_sheets.Drum.EightBeat0.Kicks);
+    const kick_with_rests = try kicks_with_rests.repeat(allocator, 2);
     const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
     const base_root = try basics_sheets.Base.WithoutThird.repeat(allocator, 4);
     const melody_root = try intro_sheets.Melody.TooooToTo.repeat(allocator, 2);
 
-    const one_kick = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 1);
+    const one_kick = kicks_with_rests;
     const one_snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 2);
 
     return allocator.dupe(Section, &.{
