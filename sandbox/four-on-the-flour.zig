@@ -137,7 +137,7 @@ const scores = struct {
     const primitives = struct {
         const timing = struct {
             const Quarter: lines.thin.Timing = @import("./four-on-the-flour/timing-quarter.zon");
-            const Third: lines.thin.Timing = @import("./four-on-the-flour/timing-third.zon");
+            const Backbeat: lines.thin.Timing = @import("./four-on-the-flour/timing-backbeat.zon");
         };
 
         const volume = struct {
@@ -210,12 +210,12 @@ const scores = struct {
         };
     }
 
-    /// Four bars of four-on-the-floor: the kick sounds on every beat, the snare on the third beat.
+    /// Four bars of four-on-the-floor: the kick sounds on every beat, the snare on the second and fourth beats.
     fn introduction(allocator: std.mem.Allocator) ![]const Section {
         // One bar of each, pairing its timings with the one shared volume. `primitives` alone is
         // ambiguous here, as the file has another one, so it is reached through `scores`.
         const kick_bar = try scores.primitives.timing.Quarter.zip(allocator, scores.primitives.volume.Default);
-        const snare_bar = try scores.primitives.timing.Third.zip(allocator, scores.primitives.volume.Default);
+        const snare_bar = try scores.primitives.timing.Backbeat.zip(allocator, scores.primitives.volume.Default);
 
         return allocator.dupe(Section, &.{
             .{
