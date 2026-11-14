@@ -38,7 +38,7 @@ pub fn inner(comptime T: type) type {
         /// Level of the hit going into the saturation, which is `tanh`, so no sample passes `volume`.
         /// The lower it is, the less the peaks are bent. It changes the loudness of the drum and
         /// how hard the hit is saturated, not the `volume` of a note.
-        input_gain: T = 0.3,
+        input_gain: T = 0.6,
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.008,
 
