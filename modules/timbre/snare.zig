@@ -1,4 +1,6 @@
 //! Rock snare drum: two shell modes, a noise crack, and band-limited noise for the wires, driven.
+//! The wires are driven by the shell: their level follows the motion of the head, so the two sound
+//! as one drum, not as a tone with a hiss laid on it.
 
 const std = @import("std");
 const lightmix = @import("lightmix");
@@ -19,6 +21,12 @@ pub fn inner(comptime T: type) type {
         shell_decay: T = 0.07,
         /// Level of the wires.
         wires: T = 0.85,
+        /// How much the wires follow the motion of the shell, from 0 (they ring on their own, as
+        /// noise with a decay) to 1 (they sound only while the head moves).
+        wire_coupling: T = 0.9,
+        /// How fast the wires settle after the head moves, in seconds. A time shorter than a cycle
+        /// of the shell makes the wires buzz in step with it.
+        wire_follow: T = 0.004,
         /// Time constant of the wires, in seconds.
         wire_decay: T = 0.16,
         /// Level of the initial crack.
@@ -40,6 +48,9 @@ pub fn inner(comptime T: type) type {
             var high: dsp.Oscillator(T) = .{};
             var wire_band = dsp.Biquad(T).init(.bandpass, 3800.0, 0.55, rate);
             var wire_air = dsp.Biquad(T).init(.highpass, 1400.0, 0.707, rate);
+            // The motion of the head as the wires feel it: its size, which falls slowly.
+            var head: T = 0.0;
+            const follow_keep: T = @exp(-1.0 / (@max(self.wire_follow, 1.0e-6) * rate));
 
             for (0..samples.len / channels) |i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
@@ -49,7 +60,11 @@ pub fn inner(comptime T: type) type {
                     0.4 * high.sine(self.shell_frequency * self.shell_ratio * bend, rate)) * dsp.decay(T, t, self.shell_decay);
 
                 const noise = random.float(T) * 2.0 - 1.0;
-                const wires = (wire_band.process(noise) + 0.5 * wire_air.process(noise)) * dsp.decay(T, t, self.wire_decay);
+                // The wires are thrown by the head: they buzz where the head moves, and a little on
+                // their own for what is left of `wire_coupling`.
+                head = @max(@abs(shell) / 1.1, head * follow_keep);
+                const gate = self.wire_coupling * head + (1.0 - self.wire_coupling);
+                const wires = (wire_band.process(noise) + 0.5 * wire_air.process(noise)) * dsp.decay(T, t, self.wire_decay) * gate;
                 const crack = noise * dsp.decay(T, t, 0.005);
 
                 const hit = shell + self.wires * wires + self.crack * crack;
@@ -121,6 +136,31 @@ test "The frames of stereo samples is the double with mono samples" {
 
     try std.testing.expectEqual(mono.len, FRAMES);
     try std.testing.expectEqual(stereo.len, mono.len * 2);
+}
+
+test "the wires follow the head: with coupling they die away with the shell" {
+    const allocator = std.testing.allocator;
+    const SAMPLE_RATE: u32 = 44100;
+    const frames: usize = 22050;
+
+    // Both hits have the same noise; only the coupling differs.
+    const free: inner(f64) = .{ .wire_coupling = 0.0 };
+    const coupled: inner(f64) = .{ .wire_coupling = 1.0 };
+    var a = std.Random.DefaultPrng.init(3);
+    const loose = try free.render(allocator, a.random(), SAMPLE_RATE, 1, 1.0, frames, frames);
+    defer allocator.free(loose);
+    var b = std.Random.DefaultPrng.init(3);
+    const tied = try coupled.render(allocator, b.random(), SAMPLE_RATE, 1, 1.0, frames, frames);
+    defer allocator.free(tied);
+
+    // Well after the shell has died (7 time constants), the free wires still ring; the coupled ones do not.
+    var loose_energy: f64 = 0.0;
+    var tied_energy: f64 = 0.0;
+    for (frames / 2..frames) |i| {
+        loose_energy += loose[i] * loose[i];
+        tied_energy += tied[i] * tied[i];
+    }
+    try std.testing.expect(tied_energy < 0.1 * loose_energy);
 }
 
 test {
