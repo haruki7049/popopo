@@ -1,7 +1,7 @@
 .{
     .columns = .{
         .volume = .{
-            .{ .amount = 1.0 },
+            .{ .value = 1.0 },
         },
     },
 

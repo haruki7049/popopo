@@ -14,8 +14,7 @@ const instruments = struct {
         return perform.Procedure(T, R, body, .timing);
     }
 
-    const GuitarNote = scores.lines.Guitar.Resolved;
-    const HitNote = scores.lines.Hit.Resolved;
+    const HitNote = lines.Hit.Resolved;
 
     /// Seconds to frames.
     fn toFrames(seconds: T) usize {
@@ -41,20 +40,6 @@ const instruments = struct {
     const snare_timbre: timbre.Snare(T) = .{};
     /// The cymbals; the closed and open hi-hat and the crash are its settings.
     const Cymbal = timbre.Cymbal(T);
-    /// The left guitar.
-    const guitar_timbre: timbre.Guitar(T) = .{};
-
-    /// A muted string is lifted early; an open one rings for its whole duration.
-    fn guitarLength(note: GuitarNote) usize {
-        if (note.volume == 0.0) return 0;
-        const held = 1.0 - 0.25 * note.mute;
-        return @intFromFloat(@round(@as(T, @floatFromInt(note.duration)) * held));
-    }
-
-    /// Sounds the left guitar at the pitch, palm muting and volume of the note.
-    fn guitarTimble(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
-        return guitar_timbre.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
-    }
 
     /// Sounds the left guitar at the pitch, palm muting and volume of the note.
     fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
@@ -66,9 +51,6 @@ const instruments = struct {
         var prng = seeded(0x5a7e, note.timing);
         return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
     }
-
-    /// One string of the left guitar; the root and the fifth are two such bodies.
-    pub const guitar: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = guitarTimble };
 
     pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
@@ -155,15 +137,13 @@ const scores = struct {
     const primitives = struct {
         const timing = struct {
             const Quarter: lines.thin.Timing = @import("./four-on-the-flour/timing-quarter.zon");
-            const Third: lines.thin.Timing = @import("./four-on-the-flour/timing-third.zon");
+            const Backbeat: lines.thin.Timing = @import("./four-on-the-flour/timing-backbeat.zon");
         };
 
         const volume = struct {
             const Default: lines.thin.Volume = @import("./four-on-the-flour/volume-default.zon");
         };
     };
-
-    fn fotf(allocator: std.mem.Allocator) std.mem.Allocator.Error![]const Section {}
 
     const Scores = struct {
         const Drum = struct {
@@ -187,17 +167,17 @@ const scores = struct {
 
         drum: Drum = .{},
 
-        /// Places `sections` one after another and gives the score of each vibrating body.
+        /// Places `all_sections` one after another and gives the score of each vibrating body.
         /// Returns `error.MismatchedExtent` when a part does not last as long as its section.
-        pub fn concat(allocator: std.mem.Allocator, sections: []const Self) !Scores {
+        pub fn concat(allocator: std.mem.Allocator, all_sections: []const Self) !Scores {
             var result: Scores = undefined;
 
             // Walks Scores.<group>.<part>, so Section must have the same names as Scores.
             inline for (@typeInfo(Scores).@"struct".fields) |group| {
                 inline for (@typeInfo(group.type).@"struct".fields) |part| {
                     const L = part.type;
-                    const parts = try allocator.alloc(L, sections.len);
-                    for (sections, parts) |section, *slot| {
+                    const parts = try allocator.alloc(L, all_sections.len);
+                    for (all_sections, parts) |section, *slot| {
                         const written = @field(@field(section, group.name), part.name);
                         slot.* = written orelse L.empty(section.extent);
                         if (slot.extent != section.extent) return error.MismatchedExtent;
@@ -230,7 +210,39 @@ const scores = struct {
         };
     }
 
-    fn introduction(allocator: std.mem.Allocator) ![]const Section {}
+    /// The drum parts of a four-on-the-floor. It names only `lines.Hit`, so the function below
+    /// does not depend on `Section`.
+    const FourOnTheFloor = struct {
+        kick: lines.Hit,
+        snare: lines.Hit,
+    };
+
+    /// Writes `bars` bars of four-on-the-floor: the kick sounds on every beat, the snare on the
+    /// second and fourth beats. Both parts last `bars` bars, so `kick.extent` is the length of
+    /// the section they are written in.
+    fn fourOnTheFloor(allocator: std.mem.Allocator, bars: usize) !FourOnTheFloor {
+        // One bar of each, pairing its timings with the one shared volume. `primitives` alone is
+        // ambiguous here, as the file has another one, so it is reached through `scores`.
+        const kick_bar = try scores.primitives.timing.Quarter.zip(allocator, scores.primitives.volume.Default);
+        const snare_bar = try scores.primitives.timing.Backbeat.zip(allocator, scores.primitives.volume.Default);
+
+        return .{
+            .kick = try kick_bar.repeat(allocator, bars),
+            .snare = try snare_bar.repeat(allocator, bars),
+        };
+    }
+
+    /// Four bars of four-on-the-floor.
+    fn introduction(allocator: std.mem.Allocator) ![]const Section {
+        const drum = try fourOnTheFloor(allocator, 4);
+
+        return allocator.dupe(Section, &.{
+            .{
+                .extent = drum.kick.extent,
+                .drum = .{ .kick = drum.kick, .snare = drum.snare },
+            },
+        });
+    }
 };
 
 /// Tempo, meter and sample rate every primitive resolves against.
@@ -261,8 +273,8 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     var mixer: mix.Mixer(configs.T) = try .init(allocator, configs.CHANNELS);
     defer mixer.deinit();
 
-    try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
-    try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
+    try play(lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
+    try play(lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try max(scores.Scores, written, context);
@@ -274,7 +286,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
 fn max(comptime S: type, written: S, ctx: meters.Context) !primitives.Timing.ResolveT {
     // f64 is the meters.Layer(...).extent type
     const ExtentT = f64;
-    var maxExtent: ExtentT = written.base.root.extent;
+    var maxExtent: ExtentT = 0.0;
 
     inline for (@typeInfo(S).@"struct".fields) |group| {
         inline for (@typeInfo(group.type).@"struct".fields) |part| {
