@@ -13,8 +13,8 @@
 //! stiffness constant of the plate. The grid is chosen at that limit, so it has as many nodes as
 //! the sample rate can use, and the highest partial is close to the Nyquist frequency.
 //!
-//! The defaults are a small, thick plate, which puts its partials where a hi-hat has them (about 8 kHz
-//! centroid). The model is linear: a plate struck hard does not pass energy on to higher partials as a real
+//! The defaults are a thin plate of the size of a 14 inch hi-hat cymbal, with little loss at high
+//! frequencies, so that its many partials spread up to the top of the spectrum (about 8 kHz centroid). The model is linear: a plate struck hard does not pass energy on to higher partials as a real
 //! cymbal does. It has one plate and no contact between two plates, so it is not yet a hi-hat.
 
 const std = @import("std");
@@ -43,11 +43,11 @@ pub fn inner(comptime T: type) type {
 
         /// Width of the plate in meters. The grid covers a whole number of cells, so the plate may
         /// be shorter by less than one cell.
-        width: T = 0.08,
+        width: T = 0.36,
         /// Height of the plate in meters, with the same rule as the width.
-        height: T = 0.08,
+        height: T = 0.36,
         /// Thickness of the plate in meters.
-        thickness: T = 0.0015,
+        thickness: T = 0.0005,
         /// Young's modulus of the metal, in Pa. The default is a bronze.
         youngs_modulus: T = 1.1e11,
         /// Density of the metal, in kg/m^3.
@@ -56,10 +56,10 @@ pub fn inner(comptime T: type) type {
         poisson: T = 0.3,
         /// Loss that is the same at every frequency, in 1/s: the amplitude of a partial falls by
         /// `exp(-sigma0 * t)` at least.
-        sigma0: T = 15.0,
+        sigma0: T = 8.0,
         /// Loss that grows with the frequency, in s: a partial of angular frequency `w` has the
         /// loss `sigma0 + sigma1 * w / kappa`.
-        sigma1: T = 2.0e-4,
+        sigma1: T = 1.0e-4,
         /// Where the plate is struck, as a share of the width and of the height, from 0 to 1.
         strike_x: T = 0.31,
         strike_y: T = 0.43,
