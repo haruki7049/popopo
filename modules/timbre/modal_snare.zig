@@ -27,6 +27,10 @@
 //!     two steps, which warps the frequencies, so each frequency is corrected beforehand and the
 //!     modes sound at the pitches the membrane has, whatever the oversampling.
 //!
+//! Solving the drum costs far more than the rest of a hit, and it is the same for every hit: there
+//! is no noise, and the volume only scales the sound. So it can be done once: `respond` solves it,
+//! and `renderWith` reads the result for each note. `render` does both for one note.
+//!
 //! The model is not checked by ear.
 
 const std = @import("std");
@@ -99,11 +103,23 @@ pub fn inner(comptime T: type) type {
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.01,
 
-        /// Returns the first `frames` frames of a hit at `volume` that sounds `length` frames if
-        /// nothing cuts it, with the one mono sound written to every channel. Frames past `length`
-        /// are silent. The same drum gives the same hit every time, with no noise in it. The caller
-        /// owns the samples.
-        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error![]T {
+        /// The velocity of the pickup after a strike, which does not depend on the note: the drum has
+        /// no noise, and the volume only scales the sound. It is solved once with `respond` and read
+        /// by any number of notes with `renderWith`.
+        pub const Response = struct {
+            /// The velocity of the pickup in m/s, mono, from the strike on. After its last frame the
+            /// drum counts as silent.
+            velocity: []T,
+
+            pub fn deinit(self: Response, allocator: std.mem.Allocator) void {
+                allocator.free(self.velocity);
+            }
+        };
+
+        /// Solves the drum for `frames` frames at `sample_rate`. A note that sounds longer than
+        /// `frames` reads silence after them, so `frames` is the longest note to be rendered with it.
+        /// The caller frees the response with `deinit`.
+        pub fn respond(self: Self, allocator: std.mem.Allocator, sample_rate: u32, frames: usize) Self.Error!Response {
             const rate: T = @floatFromInt(sample_rate);
             const steps_per_sample = @max(self.oversampling, 1);
             const k: T = 1.0 / (rate * @as(T, @floatFromInt(steps_per_sample)));
@@ -192,18 +208,12 @@ pub fn inner(comptime T: type) type {
             const m_matrix = state[base + 8 * wires ..][0 .. wires * wires];
             @memset(psi, @sqrt(@as(T, sav_offset)));
 
-            const samples = try allocator.alloc(T, frames * channels);
-            errdefer allocator.free(samples);
+            const velocities = try allocator.alloc(T, frames);
+            errdefer allocator.free(velocities);
 
-            const release_frames = dsp.frames(T, self.release, sample_rate);
             const half_inv_k = 0.5 / k;
 
             for (0..frames) |n| {
-                if (n >= length) {
-                    @memset(samples[n * channels ..][0..channels], 0.0);
-                    continue;
-                }
-
                 var velocity: T = 0.0;
                 for (0..steps_per_sample) |sub| {
                     const t = @as(T, @floatFromInt(n * steps_per_sample + sub)) * k;
@@ -277,7 +287,36 @@ pub fn inner(comptime T: type) type {
                     std.mem.swap([]T, &eta, &eta_prev);
                 }
 
-                const value = volume * self.gain * velocity * dsp.tail(T, n, length, release_frames);
+                velocities[n] = velocity;
+            }
+            return .{ .velocity = velocities };
+        }
+
+        /// Returns the first `frames` frames of a hit at `volume` that sounds `length` frames if
+        /// nothing cuts it, with the one mono sound written to every channel. Frames past `length`
+        /// are silent. The same drum gives the same hit every time, with no noise in it. The caller
+        /// owns the samples.
+        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error![]T {
+            const response = try self.respond(allocator, sample_rate, @min(length, frames));
+            defer response.deinit(allocator);
+            return self.renderWith(allocator, sample_rate, channels, volume, length, frames, response);
+        }
+
+        /// The same as `render`, with the drum read from `response` (made by `respond` for the same
+        /// drum and sample rate) instead of solved again. The samples are the same as `render` gives
+        /// whenever the response has at least as many frames as `render` would solve, the smaller of
+        /// `length` and `frames`.
+        pub fn renderWith(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize, response: Response) Self.Error![]T {
+            const samples = try allocator.alloc(T, frames * channels);
+            errdefer allocator.free(samples);
+
+            const release_frames = dsp.frames(T, self.release, sample_rate);
+
+            for (0..frames) |n| {
+                const value: T = if (n >= length or n >= response.velocity.len)
+                    0.0
+                else
+                    volume * self.gain * response.velocity[n] * dsp.tail(T, n, length, release_frames);
                 @memset(samples[n * channels ..][0..channels], value);
             }
             return samples;
@@ -285,6 +324,18 @@ pub fn inner(comptime T: type) type {
 
         pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
             const samples = try self.render(allocator, sample_rate, channels, volume, length, frames);
+
+            return .{
+                .samples = samples,
+                .allocator = allocator,
+                .sample_rate = sample_rate,
+                .channels = channels,
+            };
+        }
+
+        /// The same as `wave`, with the drum read from `response` as in `renderWith`.
+        pub fn waveWith(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, volume: T, length: usize, frames: usize, response: Response) Self.Error!lightmix.Wave(T) {
+            const samples = try self.renderWith(allocator, sample_rate, channels, volume, length, frames, response);
 
             return .{
                 .samples = samples,
@@ -713,6 +764,49 @@ test "a drum whose highest mode is below the fundamental has no modes" {
     const allocator = std.testing.allocator;
     const drum: Drum = .{ .max_frequency = 100.0 };
     try std.testing.expectError(error.NoModes, drum.render(allocator, 8000, 1, 1.0, 100, 100));
+}
+
+test "a response solved for longer than the note gives the same samples as render" {
+    const allocator = std.testing.allocator;
+    const drum: Drum = .{};
+
+    const direct = try drum.render(allocator, 8000, 2, 0.7, 2000, 2000);
+    defer allocator.free(direct);
+
+    const response = try drum.respond(allocator, 8000, 4000);
+    defer response.deinit(allocator);
+    const shared = try drum.renderWith(allocator, 8000, 2, 0.7, 2000, 2000, response);
+    defer allocator.free(shared);
+
+    try std.testing.expectEqualSlices(f64, direct, shared);
+}
+
+test "one response serves notes of different volumes and lengths" {
+    const allocator = std.testing.allocator;
+    const drum: Drum = .{};
+    const response = try drum.respond(allocator, 8000, 3000);
+    defer response.deinit(allocator);
+
+    const loud = try drum.renderWith(allocator, 8000, 1, 1.0, 3000, 3000, response);
+    defer allocator.free(loud);
+    const quiet = try drum.renderWith(allocator, 8000, 1, 0.5, 1500, 1500, response);
+    defer allocator.free(quiet);
+
+    // The volume only scales the sound, so half the volume is half the samples, up to the fade.
+    for (0..1000) |i| try std.testing.expectApproxEqAbs(0.5 * loud[i], quiet[i], 1e-12);
+}
+
+test "past the end of the response the drum counts as silent" {
+    const allocator = std.testing.allocator;
+    const drum: Drum = .{};
+    const response = try drum.respond(allocator, 8000, 500);
+    defer response.deinit(allocator);
+
+    const samples = try drum.renderWith(allocator, 8000, 1, 1.0, 2000, 2000, response);
+    defer allocator.free(samples);
+
+    for (samples[500..]) |s| try std.testing.expectEqual(@as(f64, 0.0), s);
+    try std.testing.expect(rms(samples[0..500]) > 0.0);
 }
 
 test {
