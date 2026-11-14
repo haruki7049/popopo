@@ -20,9 +20,9 @@ pub fn inner(comptime T: type) type {
         shell_decay: T = 0.07,
         /// How much of the motion of the head is thrown into the wires as a buzz at its own
         /// harmonics, besides the noise.
-        wire_buzz: T = 4.0,
+        wire_buzz: T = 2.0,
         /// Level of the wires.
-        wires: T = 3.5,
+        wires: T = 2.0,
         /// How much the wires follow the motion of the shell, from 0 (they keep ringing for
         /// `wire_decay` after the head has stopped) to 1 (they sound only while the head moves).
         wire_coupling: T = 0.85,
