@@ -40,7 +40,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     try play(scores.lines.Guitar, allocator, written.base.root, instruments.guitar, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Guitar, allocator, written.melody.root, instruments.guitar, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
-    try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
+    try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.75 }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try max(scores.Scores, written, context);

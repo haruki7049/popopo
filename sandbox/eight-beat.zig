@@ -301,7 +301,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     defer mixer.deinit();
 
     try play(lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
-    try play(lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.25 }));
+    try play(lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.75 }));
     try play(lines.Hit, allocator, written.drum.hihat, instruments.hihat, mixer.bus(.{ .gain = HIHAT_GAIN }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
