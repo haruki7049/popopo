@@ -53,12 +53,14 @@ pub fn inner(comptime T: type) type {
             NoModes,
         };
 
-        /// Radius of the head in meters. The default is a 14 inch head.
-        radius: T = 0.1778,
+        /// Radius of the head in meters. The default is a 17.5 inch head. It sets the mass of the head
+        /// with `surface_density`, not the pitch, which is `fundamental`: a head of another radius at the
+        /// same tension has the fundamental in proportion to the inverse of the radius.
+        radius: T = 0.22225,
         /// Mass of the head per area in kg/m^2. It sets how strong a force is, not the pitch.
         surface_density: T = 0.262,
         /// Frequency in Hz of the lowest mode of the head: the pitch of the drum.
-        fundamental: T = 200.0,
+        fundamental: T = 160.0,
         /// Loss that is the same at every frequency, in 1/s: the amplitude of a mode falls by
         /// `exp(-sigma0 * t)` at least.
         sigma0: T = 3.0,
@@ -93,7 +95,7 @@ pub fn inner(comptime T: type) type {
         contact_exponent: T = 1.5,
         /// Scale from the velocity of the pickup in m/s to the samples, calibrated so that a hit at
         /// the default settings peaks near 0.7.
-        gain: T = 0.143,
+        gain: T = 0.167,
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.01,
 
