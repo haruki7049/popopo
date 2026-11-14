@@ -23,6 +23,8 @@ pub const Cymbal = @import("./cymbal.zig").inner;
 pub const Guitar = @import("./guitar.zig").inner;
 /// A thin metal plate struck once and solved on a grid: a physical model, and a step towards a hi-hat.
 pub const Plate = @import("./plate.zig").inner;
+/// A snare drum from a physical model: a membrane in modes, struck, with snares that collide with it.
+pub const ModalSnare = @import("./modal_snare.zig").inner;
 
 test {
     std.testing.refAllDecls(@This());
