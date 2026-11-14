@@ -112,7 +112,6 @@ fn build_sandbox(
         .{ "sandbox/snare-stereo.zig", "snare-stereo.wav" },
         .{ "sandbox/four-on-the-flour.zig", "four-on-the-flour.wav" },
         .{ "sandbox/eight-beat.zig", "eight-beat.wav" },
-        .{ "sandbox/plate-mono.zig", "plate-mono.wav" },
     };
 
     inline for (paths_names) |pn| {
