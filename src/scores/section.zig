@@ -7,20 +7,15 @@ const Scores = @import("./scores.zig");
 
 const Section = @This();
 
-pub const Guitar = struct {
-    root: ?lines.Guitar = null,
-};
-
 pub const Drum = struct {
     kick: ?lines.Hit = null,
     snare: ?lines.Hit = null,
+    hihat: ?lines.Hit = null,
 };
 
 /// Length of this section in beats; every part written in it must last exactly this long.
 extent: f64,
 
-base: Guitar = .{},
-melody: Guitar = .{},
 drum: Drum = .{},
 
 /// Places `sections` one after another and gives the score of each vibrating body.

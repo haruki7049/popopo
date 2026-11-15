@@ -4,20 +4,14 @@ const std = @import("std");
 const meters = @import("meters");
 const primitives = @import("../primitives.zig");
 
-/// Score of one guitar string.
-pub const Guitar = meters.Layer(.{
-    .duration = primitives.Duration,
-    .mute = primitives.Mute,
-    .pitch = primitives.Pitch,
-    .timing = primitives.Timing,
-    .volume = primitives.Volume,
-});
+/// The timings alone, written apart from the volume so that one volume serves every timing.
+pub const Timing = meters.Layer(.{ .timing = primitives.Timing });
 
-/// Score of a drum: kick, snare or crash.
-pub const Hit = meters.Layer(.{
-    .timing = primitives.Timing,
-    .volume = primitives.Volume,
-});
+/// The volume alone.
+pub const Volume = meters.Layer(.{ .volume = primitives.Volume });
+
+/// Score of a drum: kick, snare or hi-hat. A timing layer zipped with a volume layer.
+pub const Hit = Timing.Zip(Volume);
 
 test {
     std.testing.refAllDecls(@This());

@@ -1,9 +1,5 @@
-const pitches = @import("pitches");
 const meters = @import("meters");
 const configs = @import("./configs.zig");
-
-/// Twelve-tone equal temperament at A4 = 440 Hz.
-pub const tuning: pitches.TwelveToneEqualTemperament = .{ .a4 = 440.0 };
 
 pub const Timing = struct {
     const Self = @This();
@@ -35,18 +31,6 @@ pub const Timing = struct {
     }
 };
 
-pub const Pitch = struct {
-    name: pitches.TwelveTonePitch,
-
-    pub const ResolveT = configs.T;
-
-    /// Resolves the name to its frequency in `tuning`. Ignores `ctx`.
-    pub fn resolve(self: Pitch, ctx: meters.Context) ResolveT {
-        _ = ctx;
-        return tuning.freq(self.name);
-    }
-};
-
 /// The energy given to a vibrating body. Zero is a rest: the note does not sound.
 pub const Volume = struct {
     /// Linear level from 0 (a rest) to 1 (full).
@@ -59,43 +43,5 @@ pub const Volume = struct {
     pub fn resolve(self: Volume, ctx: meters.Context) ResolveT {
         _ = ctx;
         return self.value;
-    }
-};
-
-pub const Duration = struct {
-    const Self = @This();
-
-    const DurationError = error{
-        InvalidDuration, // When meters.tempo.framesFromBeats function returns null
-    };
-
-    /// Written length in beats of the time signature; must be finite and not negative.
-    beats: f64,
-
-    /// A length in frames.
-    pub const ResolveT = usize;
-
-    /// Resolves this duration to a length in frames, rounded to the nearest frame. The origin of the
-    /// segment does not change a length, so `ctx.origin` is ignored. Returns `error.InvalidDuration`
-    /// for beats that are NaN, negative or infinite or a length beyond a `usize`, and a `tempo.Error`
-    /// for an invalid context.
-    pub fn resolve(self: Self, ctx: meters.Context) (DurationError || meters.tempo.Error)!ResolveT {
-        const spb = try meters.tempo.samplesPerBeat(ctx.bpm, ctx.time_signature, ctx.sample_rate);
-        return meters.tempo.framesFromBeats(self.beats, spb) orelse error.InvalidDuration;
-    }
-};
-
-/// How far the palm mutes a guitar string, from 0 (open) to 1 (fully muted).
-pub const Mute = struct {
-    /// From 0 (open) to 1 (fully muted).
-    amount: configs.T,
-
-    /// The amount of muting, handed to the guitar timbre and to the length of the note.
-    pub const ResolveT = configs.T;
-
-    /// Resolves to `amount` as it is. Ignores `ctx`.
-    pub fn resolve(self: Mute, ctx: meters.Context) ResolveT {
-        _ = ctx;
-        return self.amount;
     }
 };

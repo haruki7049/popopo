@@ -5,21 +5,17 @@ const lines = @import("./lines.zig");
 
 const Self = @This();
 
-pub const Guitar = struct {
-    /// The root string of each guitar.
-    root: lines.Guitar,
-};
-
 pub const Drum = struct {
     /// kick drum
     kick: lines.Hit,
 
     /// snare drum
     snare: lines.Hit,
+
+    /// closed hi-hat
+    hihat: lines.Hit,
 };
 
-base: Self.Guitar,
-melody: Self.Guitar,
 drum: Self.Drum,
 
 test {

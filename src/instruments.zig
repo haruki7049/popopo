@@ -16,7 +16,6 @@ pub fn Procedure(comptime R: type) type {
     return perform.Procedure(T, R, body, .timing);
 }
 
-const GuitarNote = scores.lines.Guitar.Resolved;
 const HitNote = scores.lines.Hit.Resolved;
 
 /// Seconds to frames.
@@ -43,38 +42,39 @@ const kick_timbre: timbre.Kick(T) = .{ .decay = 0.17 };
 const snare_timbre: timbre.Snare(T) = .{};
 /// The cymbals; the closed and open hi-hat and the crash are its settings.
 const Cymbal = timbre.Cymbal(T);
-/// The left guitar.
-const guitar_timbre: timbre.Guitar(T) = .{};
+/// The closed hi-hat.
+const hihat_timbre = Cymbal.closed;
 
-/// A muted string is lifted early; an open one rings for its whole duration.
-fn guitarLength(note: GuitarNote) usize {
-    if (note.volume == 0.0) return 0;
-    const held = 1.0 - 0.25 * note.mute;
-    return @intFromFloat(@round(@as(T, @floatFromInt(note.duration)) * held));
-}
-
-/// Sounds the left guitar at the pitch, palm muting and volume of the note.
-fn guitarTimble(allocator: std.mem.Allocator, note: GuitarNote, length: usize, frames: usize) anyerror![]T {
-    return guitar_timbre.render(allocator, configs.SAMPLE_RATE, note.pitch, note.mute, note.volume, length, frames);
-}
-
-/// Sounds the left guitar at the pitch, palm muting and volume of the note.
+/// Sounds the kick at the volume of the note.
 fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
     return kick_timbre.render(allocator, configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
 }
 
-/// Sounds the left guitar at the pitch, palm muting and volume of the note.
+/// Sounds the snare at the volume of the note.
 fn snareDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
     var prng = seeded(0x5a7e, note.timing);
     return snare_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, configs.CHANNELS, note.volume, length, frames);
 }
 
-/// One string of the left guitar; the root and the fifth are two such bodies.
-pub const guitar: Procedure(GuitarNote).Body = .{ .length = guitarLength, .timbre = guitarTimble };
+/// A closed hi-hat sounds for `SECONDS` unless its volume is zero; it has died away by then and
+/// the next hit comes later, so it never cuts the previous one.
+fn hihatLength(note: HitNote) usize {
+    const SECONDS: T = 0.15;
+
+    return if (note.volume > 0.0) toFrames(SECONDS) else 0;
+}
+
+/// Sounds the closed hi-hat at the volume of the note.
+fn hihatTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
+    var prng = seeded(0x41a7, note.timing);
+    return hihat_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
+}
 
 pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
 pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
+
+pub const hihat: Procedure(HitNote).Body = .{ .length = hihatLength, .timbre = hihatTimble };
 
 test {
     std.testing.refAllDecls(@This());

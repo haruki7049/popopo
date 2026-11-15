@@ -26,76 +26,43 @@ pub fn compose(allocator: std.mem.Allocator) !Scores {
 fn sections(allocator: std.mem.Allocator, part: Part) ![]const Section {
     return switch (part) {
         .introduction => introduction(allocator),
-        .a => a(allocator),
-        .b => b(allocator),
     };
 }
 
-fn b(allocator: std.mem.Allocator) ![]const Section {
-    const b_sheet = sheets.b.Gen(lines);
-    const basics_sheets = sheets.basics.Gen(lines);
+/// The drum parts of an eight beat.
+const EightBeat = struct {
+    kick: lines.Hit,
+    snare: lines.Hit,
+    hihat: lines.Hit,
+};
 
-    const kick_a = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
-    const kick_b = try b_sheet.Drum.EightBeat1.Kicks.repeat(allocator, 4);
-    const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
-    const base_root = try b_sheet.Base.WithoutThird.repeat(allocator, 4);
-    const melody_root = try b_sheet.Melody.MainPhrase.repeat(allocator, 1);
-    const melody_root_to_next = try b_sheet.Melody.ToNext.repeat(allocator, 1);
+/// Writes `bars` bars of an eight beat: the kick sounds on the first and third beats, the snare on
+/// the second and fourth beats, and the closed hi-hat on every eighth note. All parts last `bars`
+/// bars, so `kick.extent` is the length of the section they are written in.
+fn eightBeat(allocator: std.mem.Allocator, bars: usize) !EightBeat {
+    const basics = sheets.basics.Gen(lines);
 
-    const kick_to_next = b_sheet.Drum.ToNext.Kicks;
-    const snare_to_next = b_sheet.Drum.ToNext.Snares;
+    // One bar of each, pairing its timings with the one shared volume.
+    const kick_bar = try basics.Timing.Half.zip(allocator, basics.Volume.Default);
+    const snare_bar = try basics.Timing.Backbeat.zip(allocator, basics.Volume.Default);
+    const hihat_bar = try basics.Timing.Eighth.zip(allocator, basics.Volume.Default);
 
-    return allocator.dupe(Section, &.{
-        .{ .extent = 16.0, .drum = .{ .kick = kick_a, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_b, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root_to_next } },
-        .{ .extent = 4.0, .drum = .{ .kick = kick_to_next, .snare = snare_to_next } },
-    });
+    return .{
+        .kick = try kick_bar.repeat(allocator, bars),
+        .snare = try snare_bar.repeat(allocator, bars),
+        .hihat = try hihat_bar.repeat(allocator, bars),
+    };
 }
 
-fn a(allocator: std.mem.Allocator) ![]const Section {
-    const a_sheet = sheets.a.Gen(lines);
-    const basics_sheets = sheets.basics.Gen(lines);
-
-    const kick_with_rests = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
-    const one_kick = basics_sheets.Drum.EightBeat0.Kicks;
-    const one_snare = basics_sheets.Drum.EightBeat0.Snares;
-    const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
-    const base_root = try basics_sheets.Base.WithoutThird.repeat(allocator, 4);
-    const melody_root = try a_sheet.Melody.MainPhrase.repeat(allocator, 1);
-
-    const kick_last = basics_sheets.Drum.EightBeat0.KicksWithRests;
-    const snare_last = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 2);
-    const base_root_last = try basics_sheets.Base.WithoutThird.repeat(allocator, 2);
-    const melody_root_to_next = a_sheet.Melody.ToNext;
-
-    return allocator.dupe(Section, &.{
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
-        .{ .extent = 8.0, .drum = .{ .kick = kick_last, .snare = snare_last }, .base = .{ .root = base_root_last }, .melody = .{ .root = melody_root_to_next } },
-        .{ .extent = 4.0, .drum = .{ .kick = one_kick } },
-        .{ .extent = 4.0, .drum = .{ .snare = one_snare } },
-    });
-}
-
+/// Four bars of an eight beat.
 fn introduction(allocator: std.mem.Allocator) ![]const Section {
-    const intro_sheets = sheets.introduction.Gen(lines);
-    const basics_sheets = sheets.basics.Gen(lines);
-
-    const kick_with_rests = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 2);
-    const snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 4);
-    const base_root = try basics_sheets.Base.WithoutThird.repeat(allocator, 4);
-    const melody_root = try intro_sheets.Melody.TooooToTo.repeat(allocator, 2);
-
-    const one_kick = try basics_sheets.Drum.EightBeat0.KicksWithRests.repeat(allocator, 1);
-    const one_snare = try basics_sheets.Drum.EightBeat0.Snares.repeat(allocator, 2);
+    const drum = try eightBeat(allocator, 4);
 
     return allocator.dupe(Section, &.{
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root } },
-        .{ .extent = 16.0, .drum = .{ .kick = kick_with_rests, .snare = snare }, .base = .{ .root = base_root }, .melody = .{ .root = melody_root } },
-        .{ .extent = 8.0, .drum = .{ .kick = one_kick } },
-        .{ .extent = 8.0, .drum = .{ .kick = one_kick, .snare = one_snare } },
+        .{
+            .extent = drum.kick.extent,
+            .drum = .{ .kick = drum.kick, .snare = drum.snare, .hihat = drum.hihat },
+        },
     });
 }
 
