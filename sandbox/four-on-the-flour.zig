@@ -41,7 +41,7 @@ const instruments = struct {
     /// The cymbals; the closed and open hi-hat and the crash are its settings.
     const Cymbal = timbre.Cymbal(T);
     /// The open hi-hat.
-    const hihat_timbre = Cymbal.open;
+    const hihat_timbre = Cymbal.closed;
 
     /// Sounds the kick at the volume of the note.
     fn kickDrumTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frames: usize) anyerror![]T {
