@@ -13,12 +13,9 @@ const module_names = [_][]const u8{
 };
 
 /// The music parts that can be built with `-Dmusic-part=<name>`; without it, all of them are
-/// joined in declaration order. Each tag matches a declaration of the `sheets` module and a
-/// branch of `sections` in `src/scores.zig`.
+/// joined in declaration order. Each tag matches a branch of `sections` in `src/scores.zig`.
 const MusicPart = enum {
     introduction,
-    a,
-    b,
 };
 
 pub fn build(b: *std.Build) !void {

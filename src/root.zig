@@ -31,16 +31,18 @@ pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
     };
 }
 
+/// Level of the hi-hat bus; the hi-hat sits behind the kick and the snare.
+const HIHAT_GAIN: configs.T = 0.15;
+
 fn render(allocator: std.mem.Allocator) ![]configs.T {
     const written: scores.Scores = try scores.compose(allocator);
 
     var mixer: mix.Mixer(configs.T) = try .init(allocator, configs.CHANNELS);
     defer mixer.deinit();
 
-    try play(scores.lines.Guitar, allocator, written.base.root, instruments.guitar, mixer.bus(.{ .gain = 1.0 }));
-    try play(scores.lines.Guitar, allocator, written.melody.root, instruments.guitar, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.75 }));
+    try play(scores.lines.Hit, allocator, written.drum.hihat, instruments.hihat, mixer.bus(.{ .gain = HIHAT_GAIN }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try max(scores.Scores, written, context);
@@ -52,7 +54,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
 fn max(comptime S: type, written: S, ctx: meters.Context) !primitives.Timing.ResolveT {
     // f64 is the meters.Layer(...).extent type
     const ExtentT = f64;
-    var maxExtent: ExtentT = written.base.root.extent;
+    var maxExtent: ExtentT = 0.0;
 
     inline for (@typeInfo(S).@"struct".fields) |group| {
         inline for (@typeInfo(group.type).@"struct".fields) |part| {
