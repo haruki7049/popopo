@@ -45,7 +45,8 @@ fn eightBeat(allocator: std.mem.Allocator, bars: usize) !EightBeat {
     // One bar of each, pairing its timings with the one shared volume.
     const kick_bar = try basics.Timing.Half.zip(allocator, basics.Volume.Default);
     const snare_bar = try basics.Timing.Backbeat.zip(allocator, basics.Volume.Default);
-    const hihat_bar = try basics.Timing.Eighth.zip(allocator, basics.Volume.Default);
+    const double_eighth = try basics.Timing.Eighth.repeat(allocator, 2);
+    const hihat_bar = try double_eighth.zip(allocator, basics.Volume.Default);
 
     return .{
         .kick = try kick_bar.repeat(allocator, bars),
@@ -63,7 +64,7 @@ fn eightBeatWithoutHiHat(allocator: std.mem.Allocator, bars: usize) !EightBeatWi
     const basics = sheets.basics.Gen(lines);
 
     // One bar of each, pairing its timings with the one shared volume.
-    const kick_bar = try basics.Timing.Gallop.zip(allocator, basics.Volume.Default);
+    const kick_bar = try basics.Timing.Half.zip(allocator, basics.Volume.Default);
     const snare_bar = try basics.Timing.Backbeat.zip(allocator, basics.Volume.Default);
 
     return .{
