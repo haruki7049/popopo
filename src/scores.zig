@@ -63,7 +63,7 @@ fn eightBeatWithoutHiHat(allocator: std.mem.Allocator, bars: usize) !EightBeatWi
     const basics = sheets.basics.Gen(lines);
 
     // One bar of each, pairing its timings with the one shared volume.
-    const kick_bar = try basics.Timing.Half.zip(allocator, basics.Volume.Default);
+    const kick_bar = try basics.Timing.Gallop.zip(allocator, basics.Volume.Default);
     const snare_bar = try basics.Timing.Backbeat.zip(allocator, basics.Volume.Default);
 
     return .{

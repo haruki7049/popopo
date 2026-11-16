@@ -20,6 +20,12 @@
 const std = @import("std");
 const Context = @import("./context.zig");
 
+/// Errors `stretch` returns, besides the allocator's.
+pub const StretchError = error{
+    /// The factor is not finite and greater than zero.
+    InvalidFactor,
+};
+
 /// Errors `zip` returns, besides the allocator's.
 pub const ZipError = error{
     /// The layers have different numbers of elements. Make them equal by concatenation first.
@@ -298,6 +304,26 @@ fn LayerOf(comptime S: type) type {
         /// slices.
         pub fn repeat(self: Self, allocator: std.mem.Allocator, times: usize) std.mem.Allocator.Error!Self {
             return place(allocator, &.{self}, times);
+        }
+
+        /// Stretches the layer in time: its extent and the origin of every element are multiplied by
+        /// `factor`, so 0.5 makes the layer last half as long, as if it were played twice as fast.
+        /// Only where the layer sits in time changes. A column that places itself in time, such as
+        /// `Span`, keeps its own position and is scaled with `map`, by a transform written next to
+        /// that primitive. Returns `error.InvalidFactor` for a factor that is not finite and greater
+        /// than zero. The caller owns the returned slice of origins.
+        pub fn stretch(self: Self, allocator: std.mem.Allocator, factor: f64) (StretchError || std.mem.Allocator.Error)!Self {
+            if (!std.math.isFinite(factor) or !(factor > 0.0)) return error.InvalidFactor;
+
+            var result = self;
+            result.extent = self.extent * factor;
+            if (self.origins.len != 0) {
+                const origins = try allocator.alloc(f64, self.origins.len);
+                for (self.origins, origins) |origin, *scaled| scaled.* = origin * factor;
+                result.origins = origins;
+            }
+
+            return result;
         }
 
         /// Concatenates `parts` in order, the whole sequence `times` times over. The result is the
@@ -619,6 +645,33 @@ test "zip rejects two different timelines" {
     const two_cells = try cell.repeat(allocator, 2);
     const late: Gains = .{ .columns = .{ .gain = &.{ .{}, .{} } }, .extent = 2.0, .origins = &.{ 0.0, 0.5 } };
     try std.testing.expectError(error.MismatchedExtent, two_cells.zip(allocator, late));
+}
+
+test "stretch scales the extent and the origins, and nothing else" {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const cell: Rhythm = .{ .columns = .{ .span = &.{ .{ .beat = 1.0 }, .{ .beat = 3.0 } } }, .extent = 4.0 };
+
+    // Not placed by origins yet: only the extent changes, and no origin appears.
+    const half = try cell.stretch(allocator, 0.5);
+    try std.testing.expectEqual(@as(f64, 2.0), half.extent);
+    try std.testing.expectEqual(@as(usize, 0), half.origins.len);
+    try std.testing.expectEqual(@as(f64, 3.0), half.columns.span[1].beat);
+
+    // Placed by origins: they are scaled with the extent, so a repeat stays a repeat.
+    const twice = try (try cell.repeat(allocator, 2)).stretch(allocator, 0.5);
+    try std.testing.expectEqual(@as(f64, 4.0), twice.extent);
+    try std.testing.expectEqualSlices(f64, &.{ 0.0, 0.0, 2.0, 2.0 }, twice.origins);
+}
+
+test "stretch rejects a factor that is not finite and greater than zero" {
+    const cell: Rhythm = .{ .columns = .{ .span = &.{.{}} }, .extent = 1.0 };
+
+    for ([_]f64{ 0.0, -1.0, std.math.nan(f64), std.math.inf(f64) }) |factor| {
+        try std.testing.expectError(error.InvalidFactor, cell.stretch(std.testing.allocator, factor));
+    }
 }
 
 test "concat places the second layer after the extent of the first" {

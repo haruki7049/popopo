@@ -6,5 +6,7 @@ pub fn Gen(comptime L: type) type {
         pub const Backbeat: L.Timing = @import("./timing/backbeat.zon");
         /// Every eighth note of a bar.
         pub const Eighth: L.Timing = @import("./timing/eighth.zon");
+        /// Every eighth note of a bar.
+        pub const Gallop: L.Timing = @import("./timing/gallop.zon");
     };
 }

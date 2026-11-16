@@ -12,6 +12,8 @@ const std = @import("std");
 pub const Layer = @import("./layer.zig").inner;
 /// Errors of `zip`, besides the allocator's.
 pub const ZipError = @import("./layer.zig").ZipError;
+/// Errors of `stretch`, besides the allocator's.
+pub const StretchError = @import("./layer.zig").StretchError;
 /// The time primitive: a bar, a beat and a length in beats, resolved to a start and a length in
 /// frames.
 pub const Span = @import("./span.zig");
