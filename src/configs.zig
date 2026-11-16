@@ -1,7 +1,7 @@
 //! Song-wide constants: tempo, meter and audio format.
 
 /// Tempo in quarter notes per minute.
-pub const BPM: usize = 135;
+pub const BPM: usize = 100;
 /// Beats per bar (4/4).
 pub const BEATS_PER_BAR: usize = 4;
 /// Note value of one beat (4/4).
