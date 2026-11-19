@@ -40,7 +40,7 @@ const EightBeat = struct {
 /// the second and fourth beats, and the closed hi-hat on every eighth note. All parts last `bars`
 /// bars, so `kick.extent` is the length of the section they are written in.
 fn eightBeat(allocator: std.mem.Allocator, bars: usize) !EightBeat {
-    const basics = sheets.basics.Gen(lines);
+    const basics = sheets.Gen(lines);
 
     // One bar of each, pairing its timings with the one shared volume.
     const kick_bar = try basics.Timing.Half.zip(allocator, basics.Volume.Default);
