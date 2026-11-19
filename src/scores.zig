@@ -49,10 +49,6 @@ fn eightBeat(allocator: std.mem.Allocator, bars: usize) !EightBeat {
     const four_eighth: lines.Timing = try double_speed_four_fourth.repeat(allocator, 2);
     const hihat_bar: lines.Hit = try four_eighth.zip(allocator, s.Volume.Default);
 
-    std.debug.print("{d}\n", .{kick_bar.extent});
-    std.debug.print("{d}\n", .{snare_bar.extent});
-    std.debug.print("{d}\n", .{hihat_bar.extent});
-
     return .{
         .kick = try kick_bar.repeat(allocator, bars),
         .snare = try snare_bar.repeat(allocator, bars),
