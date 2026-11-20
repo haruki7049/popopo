@@ -32,7 +32,7 @@
           ...
         }:
         let
-          ZIG = pkgs.zig_0_16;
+          ZIG = pkgs.zig_0_17;
           nativeBuildInputs = [
             # Compiler
             ZIG

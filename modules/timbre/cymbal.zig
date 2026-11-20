@@ -40,7 +40,7 @@ pub fn inner(comptime T: type) type {
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
-            var oscillators = [_]dsp.Oscillator(T){.{}} ** partials.len;
+            var oscillators: [partials.len]dsp.Oscillator(T) = @splat(.{});
             var high_a = dsp.Biquad(T).init(.highpass, self.tone, 0.707, rate);
             var high_b = dsp.Biquad(T).init(.highpass, self.tone, 0.707, rate);
             var top = dsp.Biquad(T).init(.lowpass, self.brightness, 0.707, rate);

@@ -2,12 +2,12 @@
     .name = .popopo,
     .version = "0.0.0",
     .fingerprint = 0x7b0465409c1e1ec1, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.1",
 
     .dependencies = .{
         .lightmix = .{
-            .url = "https://github.com/haruki7049/lightmix/archive/refs/tags/0.26.0.tar.gz",
-            .hash = "lightmix-0.26.0-SpCovCZcBQBv6Mc5F-Jb99lcspkm-5Bo3m3nowSHKoW3",
+            .url = "https://github.com/haruki7049/lightmix/archive/refs/tags/0.27.0.tar.gz",
+            .hash = "lightmix-0.27.0-SpCovFCuBAAAceJzkDPOiufO2_xoVM-KcKyeo4RuAdcR",
         },
         .pitches = .{
             .url = "git+https://github.com/haruki7049/pitches.git#ff043817d4baaf54f83044eb6c542319659e4017",

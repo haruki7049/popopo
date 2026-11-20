@@ -187,16 +187,15 @@ const scores = struct {
             var result: Scores = undefined;
 
             // Walks Scores.<group>.<part>, so Section must have the same names as Scores.
-            inline for (@typeInfo(Scores).@"struct".fields) |group| {
-                inline for (@typeInfo(group.type).@"struct".fields) |part| {
-                    const L = part.type;
+            inline for (@typeInfo(Scores).@"struct".field_names, @typeInfo(Scores).@"struct".field_types) |group_name, Group| {
+                inline for (@typeInfo(Group).@"struct".field_names, @typeInfo(Group).@"struct".field_types) |part_name, L| {
                     const parts = try allocator.alloc(L, all_sections.len);
                     for (all_sections, parts) |section, *slot| {
-                        const written = @field(@field(section, group.name), part.name);
+                        const written = @field(@field(section, group_name), part_name);
                         slot.* = written orelse L.empty(section.extent);
                         if (slot.extent != section.extent) return error.MismatchedExtent;
                     }
-                    @field(@field(result, group.name), part.name) = try L.join(allocator, parts);
+                    @field(@field(result, group_name), part_name) = try L.join(allocator, parts);
                 }
             }
 
@@ -210,8 +209,7 @@ const scores = struct {
 
     pub fn compose(allocator: std.mem.Allocator) !Scores {
         var all: std.ArrayList(Section) = .empty;
-        inline for (@typeInfo(MusicPart).@"enum".fields) |field| {
-            const part: MusicPart = @enumFromInt(field.value);
+        inline for (std.enums.values(MusicPart)) |part| {
             try all.appendSlice(allocator, try sections(allocator, part));
         }
 
@@ -310,9 +308,9 @@ fn max(comptime S: type, written: S, ctx: meters.Context) !primitives.Timing.Res
     const ExtentT = f64;
     var maxExtent: ExtentT = 0.0;
 
-    inline for (@typeInfo(S).@"struct".fields) |group| {
-        inline for (@typeInfo(group.type).@"struct".fields) |part| {
-            const extent: ExtentT = @field(@field(@field(written, group.name), part.name), "extent");
+    inline for (@typeInfo(S).@"struct".field_names, @typeInfo(S).@"struct".field_types) |group_name, Group| {
+        inline for (@typeInfo(Group).@"struct".field_names, @typeInfo(Group).@"struct".field_types) |part_name, _| {
+            const extent: ExtentT = @field(@field(@field(written, group_name), part_name), "extent");
 
             if (maxExtent < extent)
                 maxExtent = extent;
