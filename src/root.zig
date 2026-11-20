@@ -56,9 +56,9 @@ fn max(comptime S: type, written: S, ctx: meters.Context) !primitives.Timing.Res
     const ExtentT = f64;
     var maxExtent: ExtentT = 0.0;
 
-    inline for (@typeInfo(S).@"struct".fields) |group| {
-        inline for (@typeInfo(group.type).@"struct".fields) |part| {
-            const extent: ExtentT = @field(@field(@field(written, group.name), part.name), "extent");
+    inline for (@typeInfo(S).@"struct".field_names, @typeInfo(S).@"struct".field_types) |group_name, Group| {
+        inline for (@typeInfo(Group).@"struct".field_names, @typeInfo(Group).@"struct".field_types) |part_name, _| {
+            const extent: ExtentT = @field(@field(@field(written, group_name), part_name), "extent");
 
             if (maxExtent < extent)
                 maxExtent = extent;

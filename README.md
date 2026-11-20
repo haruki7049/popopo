@@ -9,9 +9,9 @@ closed hi-hat.
 
 ## Requirements
 
-- [Zig](https://ziglang.org/) 0.16.0
+- [Zig](https://ziglang.org/) 0.17.1
 - Optionally [Nix](https://nixos.org/): `nix develop` (or `direnv allow`, with `.envrc`) gives a shell
-  with Zig 0.16, ZLS and `sox`, and `nix build` builds the piece and runs its tests.
+  with Zig 0.17, ZLS and `sox`, and `nix build` builds the piece and runs its tests.
 
 ## Build
 

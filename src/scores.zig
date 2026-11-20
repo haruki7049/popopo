@@ -15,8 +15,7 @@ pub fn compose(allocator: std.mem.Allocator) !Scores {
         return Section.concat(allocator, try sections(allocator, build_options.music_part));
 
     var all: std.ArrayList(Section) = .empty;
-    inline for (@typeInfo(Part).@"enum".fields) |field| {
-        const part: Part = @enumFromInt(field.value);
+    inline for (std.enums.values(Part)) |part| {
         try all.appendSlice(allocator, try sections(allocator, part));
     }
 

@@ -34,12 +34,25 @@ pub const ZipError = error{
     MismatchedExtent,
 };
 
+/// One field of a struct type: its name and its type.
+const Field = struct { name: [:0]const u8, type: type };
+
+/// The fields of the struct type `T`, in declaration order.
+fn fieldsOf(comptime T: type) [@typeInfo(T).@"struct".field_names.len]Field {
+    var result: [@typeInfo(T).@"struct".field_names.len]Field = undefined;
+    for (@typeInfo(T).@"struct".field_names, @typeInfo(T).@"struct".field_types, 0..) |name, field_type, i| {
+        result[i] = .{ .name = name, .type = field_type };
+    }
+
+    return result;
+}
+
 /// Returns the layer type made of the given named columns, for example
 /// `Layer(.{ .span = Span, .note = Note })`. Each column is a primitive; a type that does not
 /// keep the primitive contract does not compile. Each combination of columns is its own type, and
 /// the order the columns are written in does not matter.
 pub fn inner(comptime spec: anytype) type {
-    const fields = @typeInfo(@TypeOf(spec)).@"struct".fields;
+    const fields = fieldsOf(@TypeOf(spec));
     var names: [fields.len][]const u8 = undefined;
     var types: [fields.len]type = undefined;
     for (fields, 0..) |field, i| {
@@ -60,7 +73,7 @@ fn assertPrimitive(comptime P: type) void {
     if (!@hasDecl(P, "resolve")) @compileError(@typeName(P) ++ " is not a primitive: it has no `resolve`");
 
     const info = @typeInfo(@TypeOf(P.resolve)).@"fn";
-    if (info.params.len != 2 or info.params[1].type == null or info.params[1].type.? != Context)
+    if (info.param_types.len != 2 or info.param_types[1] == null or info.param_types[1].? != Context)
         @compileError(@typeName(P) ++ ".resolve must take `self` and a `Context`");
 
     const R = info.return_type.?;
@@ -119,7 +132,7 @@ fn originAt(origins: []const f64, i: usize) f64 {
 
 /// Rebuilds a struct type from the fields of `S`, with each field type passed through `F`.
 fn Mapped(comptime S: type, comptime F: fn (type) type) type {
-    const fields = @typeInfo(S).@"struct".fields;
+    const fields = fieldsOf(S);
     var names: [fields.len][]const u8 = undefined;
     var types: [fields.len]type = undefined;
     for (fields, 0..) |field, i| {
@@ -138,9 +151,9 @@ fn SliceOf(comptime T: type) type {
 /// The layer type of a sorted spec `S`: a struct with one field per column, holding the column's
 /// primitive.
 fn LayerOf(comptime S: type) type {
-    const specs = @typeInfo(S).@"struct".fields;
+    const specs = fieldsOf(S);
     const E = S;
-    const fields = @typeInfo(E).@"struct".fields;
+    const fields = fieldsOf(E);
 
     return struct {
         const Self = @This();
@@ -213,7 +226,7 @@ fn LayerOf(comptime S: type) type {
 
         /// The layer type that zipping with the layer type `L` gives. A name used on both sides is a compile error.
         pub fn Zip(comptime L: type) type {
-            const all = specs ++ @typeInfo(L.Spec).@"struct".fields;
+            const all = specs ++ fieldsOf(L.Spec);
             var names: [all.len][]const u8 = undefined;
             var types: [all.len]type = undefined;
             for (all, 0..) |field, i| {
@@ -263,7 +276,7 @@ fn LayerOf(comptime S: type) type {
 
             var result: Zip(@TypeOf(other)) = .{ .columns = undefined };
             inline for (fields) |field| @field(result.columns, field.name) = @field(self.columns, field.name);
-            inline for (@typeInfo(@TypeOf(other).Item).@"struct".fields) |field| {
+            inline for (fieldsOf(@TypeOf(other).Item)) |field| {
                 @field(result.columns, field.name) = @field(other.columns, field.name);
             }
 

@@ -24,16 +24,15 @@ pub fn concat(allocator: std.mem.Allocator, sections: []const Section) !Scores {
     var result: Scores = undefined;
 
     // Walks Scores.<group>.<part>, so Section must have the same names as Scores.
-    inline for (@typeInfo(Scores).@"struct".fields) |group| {
-        inline for (@typeInfo(group.type).@"struct".fields) |part| {
-            const L = part.type;
+    inline for (@typeInfo(Scores).@"struct".field_names, @typeInfo(Scores).@"struct".field_types) |group_name, Group| {
+        inline for (@typeInfo(Group).@"struct".field_names, @typeInfo(Group).@"struct".field_types) |part_name, L| {
             const parts = try allocator.alloc(L, sections.len);
             for (sections, parts) |section, *slot| {
-                const written = @field(@field(section, group.name), part.name);
+                const written = @field(@field(section, group_name), part_name);
                 slot.* = written orelse L.empty(section.extent);
                 if (slot.extent != section.extent) return error.MismatchedExtent;
             }
-            @field(@field(result, group.name), part.name) = try L.join(allocator, parts);
+            @field(@field(result, group_name), part_name) = try L.join(allocator, parts);
         }
     }
 
