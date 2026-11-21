@@ -78,9 +78,38 @@ fn fourOnTheFlour(allocator: std.mem.Allocator, bars: usize) !FourOnTheFlour {
     };
 }
 
-/// Four bars of an eight beat.
+const FourOnTheFlourOut1 = struct {
+    kick: lines.Hit,
+    snare: lines.Hit,
+    hihat: lines.Hit,
+};
+
+fn fourOnTheFlourOut1(allocator: std.mem.Allocator, bars: usize) !FourOnTheFlourOut1 {
+    const s = sheets.Gen(lines);
+
+    // One bar of each, pairing its timings with the one shared volume.
+    const kick_bar: lines.Hit = try s.Timing.FourFourth.zip(allocator, s.Volume.Default);
+    const fourth_speed_four_gallop: lines.Timing = try lines.speed(allocator, s.Timing.Gallop, 4.0);
+    const fourth_speed_third_fourth: lines.Timing = try lines.speed(allocator, s.Timing.ThirdFourth, 4.0);
+
+    const three_gallop: lines.Timing = try fourth_speed_four_gallop.repeat(allocator, 3);
+    const four_gallop: lines.Timing = try fourth_speed_four_gallop.repeat(allocator, 4);
+    const snare_gallop: lines.Timing = try fourth_speed_third_fourth.concat(allocator, three_gallop);
+
+    const snare_bar: lines.Hit = try snare_gallop.zip(allocator, s.Volume.Default);
+    const hihat_bar: lines.Hit = try four_gallop.zip(allocator, s.Volume.Default);
+
+    return .{
+        .kick = try kick_bar.repeat(allocator, bars),
+        .snare = try snare_bar.repeat(allocator, bars),
+        .hihat = try hihat_bar.repeat(allocator, bars),
+    };
+}
+
+/// Seven bars of an eight beat, followed by a one bar drum fill.
 fn introduction(allocator: std.mem.Allocator) ![]const Section {
-    const drum = try fourOnTheFlour(allocator, 4);
+    const drum = try fourOnTheFlour(allocator, 7);
+    const drum_out = try fourOnTheFlourOut1(allocator, 1);
 
     return allocator.dupe(Section, &.{
         .{
@@ -89,6 +118,14 @@ fn introduction(allocator: std.mem.Allocator) ![]const Section {
                 .kick = drum.kick,
                 .snare = drum.snare,
                 .hihat = drum.hihat,
+            },
+        },
+        .{
+            .extent = drum_out.kick.extent,
+            .drum = .{
+                .kick = drum_out.kick,
+                .snare = drum_out.snare,
+                .hihat = drum_out.hihat,
             },
         },
     });
