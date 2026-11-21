@@ -1,7 +1,8 @@
 name: Release
 
 # Creates the tag and the GitHub Release when `version` in build.zig.zon is
-# changed on main. Nothing happens if a tag with that version already exists.
+# changed on main. The tag is `v` + version (for example v0.1.0). Nothing happens if
+# that tag already exists.
 on:
   push:
     branches: ["main"]
@@ -35,7 +36,7 @@ jobs:
             echo "::error file=build.zig.zon::could not read .version"
             exit 1
           fi
-          # Full Semantic Versioning with an optional pre-release part, no "v" prefix.
+          # Full Semantic Versioning with an optional pre-release part. `version` has no "v" prefix; the tag is "v" + version.
           if ! printf '%s' "$version" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
             echo "::error file=build.zig.zon::'$version' is not a valid version (expected X.Y.Z or X.Y.Z-prerelease)"
             exit 1
@@ -46,8 +47,8 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if git rev-parse -q --verify "refs/tags/$VERSION" > /dev/null; then
-            echo "Tag $VERSION already exists; nothing to release."
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            echo "Tag v$VERSION already exists; nothing to release."
             echo "released=true" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
@@ -74,9 +75,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          args=(--target "$GITHUB_SHA" --title "$VERSION" --generate-notes)
+          args=(--target "$GITHUB_SHA" --title "v$VERSION" --generate-notes)
           # A version with a pre-release part (for example 1.0.0-rc.1) is a pre-release.
           case "$VERSION" in
             *-*) args+=(--prerelease) ;;
           esac
-          gh release create "$VERSION" "${args[@]}" dist/popopo.wav dist/SHA256SUMS
+          gh release create "v$VERSION" "${args[@]}" dist/popopo.wav dist/SHA256SUMS
