@@ -71,20 +71,18 @@ pushes a tag or changes `version` in `build.zig.zon` unless the maintainer expli
 ## Versioning
 
 popopo uses [Semantic Versioning](https://semver.org/) in the form `X.Y.Z`, or `X.Y.Z-prerelease` such as
-`1.0.0-rc.1`. The released artifact is the rendered `popopo.wav`, so the version describes how the piece changed, not
-only how the code changed.
+`1.0.0-rc.1`. The released artifact is the rendered `popopo.wav`, so compatibility is judged by the SHA-256 hash of
+`popopo.wav` (the hash in `SHA256SUMS` of the release), compared with the previous release.
 
-| Part  | Increase it when                                                                                                  |
-| ----- | ----------------------------------------------------------------------------------------------------------------- |
-| Major | The piece is changed in a way that makes the earlier version a different piece, or the minimum Zig version rises. |
-| Minor | Something is added to the piece, such as a new music part, instrument or timbre, without changing what exists.    |
-| Patch | An existing part is fixed or adjusted, such as a wrong note, a timing error, a mix level or a bug in the code.    |
+- **Patch**: the change is compatible with the previous release, that is, the SHA-256 hash of `popopo.wav` does not
+  change.
+- **Minor**: the change is not compatible with the previous release, that is, the SHA-256 hash of `popopo.wav`
+  changes.
+- **0.x to 1.0.0**: done when the maintainer judges that the piece is ready to be published to everyone.
+- **Major (1.x and later)**: done only when the change is one that anyone who listens would call a different piece of
+  music, that is, when a different piece is released.
 
-Changes that do not affect the rendered piece or the build, such as documentation, CI and refactoring, do not need a new
-version on their own.
-
-The version is `0.0.0` now. While the major version is `0`, the piece is still being composed and any change may be
-made in a minor release.
+The version is `0.0.0` now.
 
 ### The source of truth
 
