@@ -1,4 +1,4 @@
-//! Ready-made timbres for rock: drums and an acoustic guitar string.
+//! Ready-made timbres for rock: drums, an acoustic guitar string and a sawtooth synthesizer.
 //!
 //! Role: Ready-made timbres. Depends on nothing but `std`.
 //!
@@ -21,6 +21,8 @@ pub const Snare = @import("./snare.zig").inner;
 pub const Cymbal = @import("./cymbal.zig").inner;
 /// Acoustic guitar string, open or palm-muted.
 pub const Guitar = @import("./guitar.zig").inner;
+/// Sawtooth synthesizer that sounds a chord.
+pub const Saw = @import("./saw.zig").inner;
 
 test {
     std.testing.refAllDecls(@This());

@@ -4,6 +4,7 @@
 const std = @import("std");
 const body = @import("body");
 const perform = @import("perform");
+const pitches = @import("pitches");
 const timbre = @import("timbre");
 
 const configs = @import("./configs.zig");
@@ -70,11 +71,38 @@ fn hihatTimble(allocator: std.mem.Allocator, note: HitNote, length: usize, frame
     return hihat_timbre.render(allocator, prng.random(), configs.SAMPLE_RATE, note.volume, length, frames);
 }
 
+const StabNote = scores.lines.Stab.Resolved;
+
+/// The sawtooth synthesizer with its default settings.
+const saw_timbre: timbre.Saw(T) = .{};
+
+/// A stab sounds for `SECONDS` unless its volume is zero; it is short, so it stops before the next
+/// offbeat comes.
+fn stabLength(note: StabNote) usize {
+    const SECONDS: T = 0.09;
+
+    return if (note.volume > 0.0) toFrames(SECONDS) else 0;
+}
+
+/// The tuning of the synthesizer: twelve-tone equal temperament with A4 at 440 Hz.
+const tuning: pitches.TwelveToneEqualTemperament = .{};
+
+/// Sounds the chord of the note, tuned, at the volume of the note.
+fn stabTimble(allocator: std.mem.Allocator, note: StabNote, length: usize, frames: usize) anyerror![]T {
+    const frequencies = try allocator.alloc(T, note.chord.len);
+    defer allocator.free(frequencies);
+    for (frequencies, note.chord) |*frequency, pitch| frequency.* = tuning.freq(pitch);
+
+    return saw_timbre.render(allocator, configs.SAMPLE_RATE, frequencies, note.volume, length, frames);
+}
+
 pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
 pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
 
 pub const hihat: Procedure(HitNote).Body = .{ .length = hihatLength, .timbre = hihatTimble };
+
+pub const stab: Procedure(StabNote).Body = .{ .length = stabLength, .timbre = stabTimble };
 
 test {
     std.testing.refAllDecls(@This());

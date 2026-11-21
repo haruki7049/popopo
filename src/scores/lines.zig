@@ -13,6 +13,12 @@ pub const Volume = meters.Layer(.{ .volume = primitives.Volume });
 /// Score of a drum: kick, snare or hi-hat. A timing layer zipped with a volume layer.
 pub const Hit = Timing.Zip(Volume);
 
+/// The chord alone.
+pub const Chord = meters.Layer(.{ .chord = primitives.Chord });
+
+/// Score of a chord played on a synthesizer: a hit that also says which chord sounds.
+pub const Stab = Hit.Zip(Chord);
+
 /// Plays `layer` `times` times as fast: its extent and the position of each element become `1 / times`
 /// of what they were, so a layer of one bar lasts a bar over `times`. `layer` is any layer with a
 /// timing column, such as `Timing` or `Hit`. Repeat the result `times` times to fill the bar again.

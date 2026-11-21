@@ -1,0 +1,15 @@
+.{
+    .columns = .{
+        .chord = .{
+            .{
+                .pitches = .{
+                    .{ .code = .a, .octave = 3 },
+                    .{ .code = .c, .octave = 4 },
+                    .{ .code = .e, .octave = 4 },
+                },
+            },
+        },
+    },
+
+    .extent = 0.0,
+}

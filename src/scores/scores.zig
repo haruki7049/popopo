@@ -16,7 +16,14 @@ pub const Drum = struct {
     hihat: lines.Hit,
 };
 
+pub const Synth = struct {
+    /// chords stabbed by the sawtooth synthesizer
+    stab: lines.Stab,
+};
+
 drum: Self.Drum,
+
+synth: Self.Synth,
 
 test {
     std.testing.refAllDecls(@This());

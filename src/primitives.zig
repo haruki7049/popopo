@@ -1,5 +1,6 @@
 const std = @import("std");
 const meters = @import("meters");
+const pitches = @import("pitches");
 const configs = @import("./configs.zig");
 
 pub const Timing = struct {
@@ -67,5 +68,20 @@ pub const Volume = struct {
     pub fn resolve(self: Volume, ctx: meters.Context) ResolveT {
         _ = ctx;
         return self.value;
+    }
+};
+
+/// The pitches of a chord. A pitch holds no tuning; the instrument tunes it.
+pub const Chord = struct {
+    /// Each pitch of the chord.
+    pitches: []const pitches.TwelveTonePitch,
+
+    /// The pitches, handed to the instrument as they are.
+    pub const ResolveT = []const pitches.TwelveTonePitch;
+
+    /// Resolves to `pitches` as they are. Ignores `ctx`.
+    pub fn resolve(self: Chord, ctx: meters.Context) ResolveT {
+        _ = ctx;
+        return self.pitches;
     }
 };
