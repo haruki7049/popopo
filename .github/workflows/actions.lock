@@ -12,7 +12,6 @@ workflows:
     '.github/workflows/release.yml':
         - 'actions/checkout@v7.0.1'
         - 'cachix/install-nix-action@v31.11.5'
-        - 'svenstaro/upload-release-action@2.11.5'
     '.github/workflows/verify-actions-lockfile.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/zig-ci.yml':
@@ -34,11 +33,6 @@ dependencies:
         commit: 'sha1-d1434d08867e3ee9daa34448df10607b98908d29'
         owner_id: 7289241
         repo_id: 812112570
-    'svenstaro/upload-release-action@2.11.5':
-        ref: '2.11.5'
-        commit: 'sha1-29e53e917877a24fad85510ded594ab3c9ca12de'
-        owner_id: 1664
-        repo_id: 203697873
     'ytanikin/pr-conventional-commits@1.5.2':
         ref: '1.5.2'
         commit: 'sha1-639145d78959c53c43112365837e3abd21ed67c1'
