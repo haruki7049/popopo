@@ -1,4 +1,5 @@
 const std = @import("std");
+const meters = @import("meters");
 const sheets = @import("sheets");
 const build_options = @import("build_options");
 
@@ -106,9 +107,55 @@ fn fourOnTheFlourOut1(allocator: std.mem.Allocator, bars: usize) !FourOnTheFlour
     };
 }
 
-/// Seven bars of an eight beat, followed by a one bar drum fill.
+/// Writes `bars` bars of the synthesizer stabbing `chord` on the offbeat of every beat. `chord` is
+/// one chord that is not placed in time, which is broadcast over every stab.
+fn offbeatStab(allocator: std.mem.Allocator, bars: usize, chord: lines.Chord) !lines.Stab {
+    const s = sheets.Gen(lines);
+
+    // The backbeat at double speed lasts two beats and sounds at 0.5 and 1.5; twice of it fills a
+    // bar with 0.5, 1.5, 2.5 and 3.5.
+    const double_speed_backbeat: lines.Timing = try lines.speed(allocator, s.Timing.Backbeat, 2.0);
+    const offbeat: lines.Timing = try double_speed_backbeat.repeat(allocator, 2);
+
+    // One bar, pairing its timings with the one shared volume and the one shared chord.
+    const hit_bar: lines.Hit = try offbeat.zip(allocator, s.Volume.Default);
+    const stab_bar: lines.Stab = try hit_bar.zip(allocator, chord);
+
+    return stab_bar.repeat(allocator, bars);
+}
+
+/// The snare of seven bars of four on the floor: the backbeat, with one more snare on the offbeat
+/// of the third beat of the fourth bar.
+fn introductionSnare(allocator: std.mem.Allocator) !lines.Hit {
+    const s = sheets.Gen(lines);
+
+    const snare_bar: lines.Hit = try s.Timing.Backbeat.zip(allocator, s.Volume.Default);
+
+    // The backbeat, and the extra snare at 2.5 beats from the start of the bar.
+    const extra_timing: lines.Timing = .{
+        .columns = .{ .timing = &.{
+            .{ .bar = 0, .beat = 1.0 },
+            .{ .bar = 0, .beat = 2.5 },
+            .{ .bar = 0, .beat = 3.0 },
+        } },
+        .extent = 4.0,
+    };
+    const extra_bar: lines.Hit = try extra_timing.zip(allocator, s.Volume.Default);
+
+    return lines.Hit.join(allocator, &.{
+        try snare_bar.repeat(allocator, 3),
+        extra_bar,
+        try snare_bar.repeat(allocator, 3),
+    });
+}
+
+/// Seven bars of four on the floor, followed by a one bar drum fill, with the synthesizer stabbing
+/// the offbeat all along.
 fn introduction(allocator: std.mem.Allocator) ![]const Section {
+    const s = sheets.Gen(lines);
+
     const drum = try fourOnTheFlour(allocator, 7);
+    const snare = try introductionSnare(allocator);
     const drum_out = try fourOnTheFlourOut1(allocator, 1);
 
     return allocator.dupe(Section, &.{
@@ -116,8 +163,11 @@ fn introduction(allocator: std.mem.Allocator) ![]const Section {
             .extent = drum.kick.extent,
             .drum = .{
                 .kick = drum.kick,
-                .snare = drum.snare,
+                .snare = snare,
                 .hihat = drum.hihat,
+            },
+            .synth = .{
+                .stab = try offbeatStab(allocator, 7, s.Chord.A3C4E4),
             },
         },
         .{
@@ -127,8 +177,30 @@ fn introduction(allocator: std.mem.Allocator) ![]const Section {
                 .snare = drum_out.snare,
                 .hihat = drum_out.hihat,
             },
+            .synth = .{
+                .stab = try offbeatStab(allocator, 1, s.Chord.A3C4E4),
+            },
         },
     });
+}
+
+test "the snare of the introduction has one more hit on the offbeat of the third beat of the fourth bar" {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    // 120 BPM, 44100 Hz: a beat is 22050 frames.
+    const ctx: meters.Context = .{ .bpm = 120, .sample_rate = 44100 };
+    const snare = try introductionSnare(allocator);
+    try std.testing.expectEqual(@as(f64, 28.0), snare.extent);
+
+    const notes = try snare.resolve(allocator, ctx);
+    // Two hits in each of the six other bars, and three in the fourth.
+    try std.testing.expectEqual(@as(usize, 15), notes.len);
+
+    // The fourth bar starts at beat 12: its hits are at beats 13, 14.5 and 15.
+    const frames = [_]usize{ 13 * 22050, 29 * 11025, 15 * 22050 };
+    for (notes[6..9], frames) |note, frame| try std.testing.expectEqual(frame, note.timing);
 }
 
 test {

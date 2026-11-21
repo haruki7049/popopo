@@ -13,10 +13,16 @@ pub const Drum = struct {
     hihat: ?lines.Hit = null,
 };
 
+pub const Synth = struct {
+    stab: ?lines.Stab = null,
+};
+
 /// Length of this section in beats; every part written in it must last exactly this long.
 extent: f64,
 
 drum: Drum = .{},
+
+synth: Synth = .{},
 
 /// Places `sections` one after another and gives the score of each vibrating body.
 /// Returns `error.MismatchedExtent` when a part does not last as long as its section.

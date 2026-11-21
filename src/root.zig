@@ -34,6 +34,9 @@ pub fn gen(init: std.process.Init) !lightmix.Wave(configs.T) {
 /// Level of the hi-hat bus; the hi-hat sits behind the kick and the snare.
 const HIHAT_GAIN: configs.T = 0.15;
 
+/// Level of the synthesizer bus; a provisional value to be set by ear.
+const STAB_GAIN: configs.T = 0.3;
+
 fn render(allocator: std.mem.Allocator) ![]configs.T {
     const written: scores.Scores = try scores.compose(allocator);
 
@@ -43,6 +46,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.75 }));
     try play(scores.lines.Hit, allocator, written.drum.hihat, instruments.hihat, mixer.bus(.{ .gain = HIHAT_GAIN }));
+    try play(scores.lines.Stab, allocator, written.synth.stab, instruments.stab, mixer.bus(.{ .gain = STAB_GAIN }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try max(scores.Scores, written, context);
