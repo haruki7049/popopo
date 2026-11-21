@@ -11,7 +11,7 @@ workflows:
         - 'ytanikin/pr-conventional-commits@1.5.2'
     '.github/workflows/release.yml':
         - 'actions/checkout@v7.0.1'
-        - 'mlugg/setup-zig@v2.2.1'
+        - 'cachix/install-nix-action@v31.11.5'
     '.github/workflows/verify-actions-lockfile.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/zig-ci.yml':

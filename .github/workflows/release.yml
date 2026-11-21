@@ -53,21 +53,20 @@ jobs:
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Setup Ziglang
+      - name: Install Nix
         if: steps.exists.outputs.released == 'false'
-        uses: mlugg/setup-zig@v2.2.1
+        uses: cachix/install-nix-action@v31.11.5
         with:
-          version: 0.17.1
-      - name: Test and build
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Build
         if: steps.exists.outputs.released == 'false'
-        run: |
-          zig build test
-          zig build
+        # Runs `zig build` (renders popopo.wav) and `zig build test` in the Nix sandbox
+        run: nix build .#default --print-build-logs
       - name: Collect release assets
         if: steps.exists.outputs.released == 'false'
         run: |
           mkdir dist
-          cp zig-out/share/popopo.wav dist/popopo.wav
+          cp result/share/popopo.wav dist/popopo.wav
           (cd dist && sha256sum ./* > SHA256SUMS)
       - name: Create the tag and the GitHub Release
         if: steps.exists.outputs.released == 'false'
