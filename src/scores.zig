@@ -106,7 +106,7 @@ fn fourOnTheFlourOut1(allocator: std.mem.Allocator, bars: usize) !FourOnTheFlour
     };
 }
 
-/// Four bars of an eight beat.
+/// Seven bars of an eight beat, followed by a one bar drum fill.
 fn introduction(allocator: std.mem.Allocator) ![]const Section {
     const drum = try fourOnTheFlour(allocator, 7);
     const drum_out = try fourOnTheFlourOut1(allocator, 1);
