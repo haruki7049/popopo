@@ -40,6 +40,12 @@ pub const MergeError = error{
     MismatchedExtent,
 };
 
+/// Errors `pick` returns, besides the allocator's.
+pub const PickError = error{
+    /// A number is not below the number of elements of the layer.
+    IndexOutOfRange,
+};
+
 /// One field of a struct type: its name and its type.
 const Field = struct { name: [:0]const u8, type: type };
 
@@ -349,6 +355,31 @@ fn LayerOf(comptime S: type) type {
             const origins = try allocator.alloc(f64, total);
             for (0..self.count()) |i| origins[i] = originAt(self.origins, i);
             for (0..other.count()) |i| origins[self.count() + i] = originAt(other.origins, i);
+            result.origins = origins;
+
+            return result;
+        }
+
+        /// Keeps only the elements at `indices`, in the order of `indices`; a number may be given
+        /// more than once. Each element keeps its origin and the layer keeps its extent, so what is
+        /// left sounds where it did. Returns `error.IndexOutOfRange` for a number that is not below
+        /// the number of elements. The caller owns the returned slices.
+        pub fn pick(self: Self, allocator: std.mem.Allocator, indices: []const usize) (PickError || std.mem.Allocator.Error)!Self {
+            for (indices) |index| {
+                if (index >= self.count()) return error.IndexOutOfRange;
+            }
+
+            var result: Self = .{ .columns = undefined, .extent = self.extent };
+            inline for (fields) |field| {
+                const column = try allocator.alloc(field.type, indices.len);
+                const values = @field(self.columns, field.name);
+                for (indices, column) |index, *slot| slot.* = values[index];
+                @field(result.columns, field.name) = column;
+            }
+            if (self.origins.len == 0) return result;
+
+            const origins = try allocator.alloc(f64, indices.len);
+            for (indices, origins) |index, *origin| origin.* = self.origins[index];
             result.origins = origins;
 
             return result;
@@ -825,6 +856,66 @@ test "merge of layers that are not placed in time only appends" {
 test "merge returns the error of the allocator" {
     const a: Notes = Notes.notate(&.{.{ .semitones = 0 }});
     try std.testing.expectError(error.OutOfMemory, a.merge(std.testing.failing_allocator, a));
+}
+
+test "pick keeps the elements at the numbers, in that order, and the extent" {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const bar: Rhythm = .{ .columns = .{ .span = &.{ .{ .beat = 0.5 }, .{ .beat = 1.5 }, .{ .beat = 2.5 }, .{ .beat = 3.5 } } }, .extent = 4.0 };
+
+    const third = try bar.pick(allocator, &.{2});
+    try std.testing.expectEqual(@as(f64, 4.0), third.extent);
+    try std.testing.expectEqualDeep(@as([]const Span, &.{.{ .beat = 2.5 }}), third.columns.span);
+    try std.testing.expectEqual(@as(usize, 0), third.origins.len);
+
+    const reordered = try bar.pick(allocator, &.{ 3, 0, 3 });
+    try std.testing.expectEqualDeep(@as([]const Span, &.{ .{ .beat = 3.5 }, .{ .beat = 0.5 }, .{ .beat = 3.5 } }), reordered.columns.span);
+
+    const none = try bar.pick(allocator, &.{});
+    try std.testing.expectEqual(@as(usize, 0), none.count());
+    try std.testing.expectEqual(@as(f64, 4.0), none.extent);
+}
+
+test "pick keeps the origin of every element it keeps" {
+    var arena: std.heap.ArenaAllocator = .init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const cell: Rhythm = .{ .columns = .{ .span = &.{ .{}, .{ .beat = 0.5 } } }, .extent = 1.0 };
+    const four = try cell.repeat(allocator, 2);
+
+    const picked = try four.pick(allocator, &.{ 2, 1 });
+    try std.testing.expectEqualSlices(f64, &.{ 1, 0 }, picked.origins);
+    try std.testing.expectEqual(@as(f64, 2.0), picked.extent);
+}
+
+test "pick keeps every column of the element" {
+    const allocator = std.testing.allocator;
+    const Score = inner(.{ .span = Span, .note = Note });
+    const rhythm: Rhythm = .{ .columns = .{ .span = &.{ .{ .beat = 0.0 }, .{ .beat = 1.0 } } }, .extent = 2.0 };
+    const notes = Notes.notate(&.{ .{ .semitones = 0 }, .{ .semitones = 7 } });
+    const score: Score = try rhythm.zip(allocator, notes);
+
+    const picked = try score.pick(allocator, &.{1});
+    defer allocator.free(picked.columns.span);
+    defer allocator.free(picked.columns.note);
+    try std.testing.expectEqual(@as(f64, 1.0), picked.columns.span[0].beat);
+    try std.testing.expectEqual(@as(i32, 7), picked.columns.note[0].semitones);
+}
+
+test "pick rejects a number that is not below the number of elements" {
+    const allocator = std.testing.allocator;
+    const bar: Rhythm = .{ .columns = .{ .span = &.{ .{}, .{ .beat = 1.0 } } }, .extent = 2.0 };
+
+    try std.testing.expectError(error.IndexOutOfRange, bar.pick(allocator, &.{2}));
+    try std.testing.expectError(error.IndexOutOfRange, bar.pick(allocator, &.{ 0, 5 }));
+}
+
+test "pick returns the error of the allocator" {
+    const a: Notes = Notes.notate(&.{.{ .semitones = 0 }});
+    try std.testing.expectError(error.OutOfMemory, a.pick(std.testing.failing_allocator, &.{0}));
 }
 
 test "an empty layer is silence of its extent" {

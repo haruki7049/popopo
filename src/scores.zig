@@ -107,18 +107,24 @@ fn fourOnTheFlourOut1(allocator: std.mem.Allocator, bars: usize) !FourOnTheFlour
     };
 }
 
-/// Writes `bars` bars of the synthesizer stabbing `chord` on the offbeat of every beat. `chord` is
-/// one chord that is not placed in time, which is broadcast over every stab.
-fn offbeatStab(allocator: std.mem.Allocator, bars: usize, chord: lines.Chord) !lines.Stab {
+/// One bar of the timings at 0.5, 1.5, 2.5 and 3.5 beats.
+fn offbeatTiming(allocator: std.mem.Allocator) !lines.Timing {
     const s = sheets.Gen(lines);
 
     // The backbeat at double speed lasts two beats and sounds at 0.5 and 1.5; twice of it fills a
     // bar with 0.5, 1.5, 2.5 and 3.5.
     const double_speed_backbeat: lines.Timing = try lines.speed(allocator, s.Timing.Backbeat, 2.0);
-    const offbeat: lines.Timing = try double_speed_backbeat.repeat(allocator, 2);
+
+    return double_speed_backbeat.repeat(allocator, 2);
+}
+
+/// Writes `bars` bars of the synthesizer stabbing `chord` on the offbeat of every beat. `chord` is
+/// one chord that is not placed in time, which is broadcast over every stab.
+fn offbeatStab(allocator: std.mem.Allocator, bars: usize, chord: lines.Chord) !lines.Stab {
+    const s = sheets.Gen(lines);
 
     // One bar, pairing its timings with the one shared volume and the one shared chord.
-    const hit_bar: lines.Hit = try offbeat.zip(allocator, s.Volume.Default);
+    const hit_bar: lines.Hit = try (try offbeatTiming(allocator)).zip(allocator, s.Volume.Default);
     const stab_bar: lines.Stab = try hit_bar.zip(allocator, chord);
 
     return stab_bar.repeat(allocator, bars);
@@ -131,15 +137,9 @@ fn introductionSnare(allocator: std.mem.Allocator) !lines.Hit {
 
     const snare_bar: lines.Hit = try s.Timing.Backbeat.zip(allocator, s.Volume.Default);
 
-    // The backbeat, and the extra snare at 2.5 beats from the start of the bar.
-    const extra_timing: lines.Timing = .{
-        .columns = .{ .timing = &.{
-            .{ .bar = 0, .beat = 1.0 },
-            .{ .bar = 0, .beat = 2.5 },
-            .{ .bar = 0, .beat = 3.0 },
-        } },
-        .extent = 4.0,
-    };
+    // The backbeat, with the third of the four offbeats laid over it: the one at 2.5 beats.
+    const third_offbeat: lines.Timing = try (try offbeatTiming(allocator)).pick(allocator, &.{2});
+    const extra_timing: lines.Timing = try s.Timing.Backbeat.merge(allocator, third_offbeat);
     const extra_bar: lines.Hit = try extra_timing.zip(allocator, s.Volume.Default);
 
     return lines.Hit.join(allocator, &.{
@@ -198,9 +198,11 @@ test "the snare of the introduction has one more hit on the offbeat of the third
     // Two hits in each of the six other bars, and three in the fourth.
     try std.testing.expectEqual(@as(usize, 15), notes.len);
 
-    // The fourth bar starts at beat 12: its hits are at beats 13, 14.5 and 15.
-    const frames = [_]usize{ 13 * 22050, 29 * 11025, 15 * 22050 };
-    for (notes[6..9], frames) |note, frame| try std.testing.expectEqual(frame, note.timing);
+    // The fourth bar starts at beat 12: its hits are at beats 13, 14.5 and 15. The merged layer
+    // does not sort them, and whatever plays the layer does, so they are sorted here.
+    var hits = [_]usize{ notes[6].timing, notes[7].timing, notes[8].timing };
+    std.mem.sort(usize, &hits, {}, std.sort.asc(usize));
+    try std.testing.expectEqualSlices(usize, &.{ 13 * 22050, 29 * 11025, 15 * 22050 }, &hits);
 }
 
 test {
