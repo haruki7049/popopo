@@ -4,6 +4,7 @@ pub fn Gen(comptime L: type) type {
         pub const FirstThirdFourth: L.Timing = @import("./timing/first-third-fourth.zon");
         pub const FirstThird: L.Timing = @import("./timing/first-third.zon");
         pub const SecondFourth: L.Timing = @import("./timing/second-fourth.zon");
+        pub const ThirdFourth: L.Timing = @import("./timing/third-fourth.zon");
 
         /// The first and the third beat of a bar.
         pub const Half = FirstThird;
