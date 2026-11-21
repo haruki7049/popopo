@@ -55,14 +55,41 @@ fn eightBeat(allocator: std.mem.Allocator, bars: usize) !EightBeat {
     };
 }
 
+const FourOnTheFlour = struct {
+    kick: lines.Hit,
+    snare: lines.Hit,
+    hihat: lines.Hit,
+};
+
+fn fourOnTheFlour(allocator: std.mem.Allocator, bars: usize) !FourOnTheFlour {
+    const s = sheets.Gen(lines);
+
+    // One bar of each, pairing its timings with the one shared volume.
+    const kick_bar: lines.Hit = try s.Timing.FourFourth.zip(allocator, s.Volume.Default);
+    const snare_bar: lines.Hit = try s.Timing.Backbeat.zip(allocator, s.Volume.Default);
+    const fourth_speed_four_gallop: lines.Timing = try lines.speed(allocator, s.Timing.Gallop, 4.0);
+    const four_gallop: lines.Timing = try fourth_speed_four_gallop.repeat(allocator, 4);
+    const hihat_bar: lines.Hit = try four_gallop.zip(allocator, s.Volume.Default);
+
+    return .{
+        .kick = try kick_bar.repeat(allocator, bars),
+        .snare = try snare_bar.repeat(allocator, bars),
+        .hihat = try hihat_bar.repeat(allocator, bars),
+    };
+}
+
 /// Four bars of an eight beat.
 fn introduction(allocator: std.mem.Allocator) ![]const Section {
-    const drum = try eightBeat(allocator, 4);
+    const drum = try fourOnTheFlour(allocator, 4);
 
     return allocator.dupe(Section, &.{
         .{
             .extent = drum.kick.extent,
-            .drum = .{ .kick = drum.kick, .snare = drum.snare, .hihat = drum.hihat },
+            .drum = .{
+                .kick = drum.kick,
+                .snare = drum.snare,
+                .hihat = drum.hihat,
+            },
         },
     });
 }
