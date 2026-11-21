@@ -1,6 +1,6 @@
 .{
     .name = .popopo,
-    .version = "0.0.0",
+    .version = "0.1.0-rc.0",
     .fingerprint = 0x7b0465409c1e1ec1, // Changing this has security and trust implications.
     .minimum_zig_version = "0.17.1",
 
