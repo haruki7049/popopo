@@ -96,6 +96,37 @@ fn stabTimble(allocator: std.mem.Allocator, note: StabNote, length: usize, frame
     return saw_timbre.render(allocator, configs.SAMPLE_RATE, frequencies, note.volume, length, frames);
 }
 
+/// The guitar with its default settings.
+const guitar_timbre: timbre.Guitar(T) = .{};
+
+/// How far the palm mutes the strings of a guitar stab, from 0 (open) to 1 (fully muted).
+const GUITAR_STAB_MUTE: T = 1.0;
+
+/// A guitar stab sounds for `SECONDS` unless its volume is zero, as long as the synthesizer stab, so
+/// it stops before the next offbeat comes.
+fn guitarStabLength(note: StabNote) usize {
+    const SECONDS: T = 0.09;
+
+    return if (note.volume > 0.0) toFrames(SECONDS) else 0;
+}
+
+/// Sounds every pitch of the chord of the note on its own string of the guitar, tuned, at the volume
+/// of the note. The sum is divided by the number of pitches, so a chord is as loud as a single pitch.
+fn guitarStabTimble(allocator: std.mem.Allocator, note: StabNote, length: usize, frames: usize) anyerror![]T {
+    const samples = try allocator.alloc(T, frames * configs.CHANNELS);
+    errdefer allocator.free(samples);
+    @memset(samples, 0.0);
+    if (note.chord.len == 0) return samples;
+
+    const share: T = 1.0 / @as(T, @floatFromInt(note.chord.len));
+    for (note.chord) |pitch| {
+        const string = try guitar_timbre.render(allocator, configs.SAMPLE_RATE, configs.CHANNELS, tuning.freq(pitch), GUITAR_STAB_MUTE, note.volume, length, frames);
+        defer allocator.free(string);
+        for (samples, string) |*sample, value| sample.* += share * value;
+    }
+    return samples;
+}
+
 pub const kick: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = kickDrumTimble };
 
 pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = snareDrumTimble };
@@ -103,6 +134,8 @@ pub const snare: Procedure(HitNote).Body = .{ .length = drumLength, .timbre = sn
 pub const hihat: Procedure(HitNote).Body = .{ .length = hihatLength, .timbre = hihatTimble };
 
 pub const stab: Procedure(StabNote).Body = .{ .length = stabLength, .timbre = stabTimble };
+
+pub const guitar_stab: Procedure(StabNote).Body = .{ .length = guitarStabLength, .timbre = guitarStabTimble };
 
 test {
     std.testing.refAllDecls(@This());

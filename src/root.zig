@@ -46,7 +46,7 @@ fn render(allocator: std.mem.Allocator) ![]configs.T {
     try play(scores.lines.Hit, allocator, written.drum.kick, instruments.kick, mixer.bus(.{ .gain = 1.0 }));
     try play(scores.lines.Hit, allocator, written.drum.snare, instruments.snare, mixer.bus(.{ .gain = 0.75 }));
     try play(scores.lines.Hit, allocator, written.drum.hihat, instruments.hihat, mixer.bus(.{ .gain = HIHAT_GAIN }));
-    try play(scores.lines.Stab, allocator, written.synth.stab, instruments.stab, mixer.bus(.{ .gain = STAB_GAIN }));
+    try play(scores.lines.Stab, allocator, written.synth.stab, instruments.guitar_stab, mixer.bus(.{ .gain = STAB_GAIN }));
 
     // The piece lasts as long as its timeline; a ringing crash may run past it.
     const end = try max(scores.Scores, written, context);
