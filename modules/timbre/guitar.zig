@@ -3,12 +3,15 @@
 //! body resonance.
 
 const std = @import("std");
+const lightmix = @import("lightmix");
 const dsp = @import("./dsp.zig");
 
 /// Returns the guitar type for samples of type `T`. The fields are the parameters of the timbre.
 pub fn inner(comptime T: type) type {
     return struct {
         const Self = @This();
+
+        const Error = std.mem.Allocator.Error;
 
         /// Most harmonics of the string that are summed.
         const harmonics = 24;
@@ -36,12 +39,12 @@ pub fn inner(comptime T: type) type {
         /// Fade of the timbre at the end of the note, in seconds.
         release: T = 0.01,
 
-        /// Returns the first `frames` frames (mono) of a note at `frequency` Hz and `volume` that
+        /// Returns the first `frames` frames of a note at `frequency` Hz and `volume` that
         /// sounds `length` frames if nothing cuts it. `mute` is how far the palm mutes the string,
         /// from 0 (open) to 1 (fully muted). Frames past `length` are silent. The caller owns the
         /// samples.
-        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, frequency: T, mute: T, volume: T, length: usize, frames: usize) std.mem.Allocator.Error![]T {
-            const samples = try allocator.alloc(T, frames);
+        pub fn render(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, frequency: T, mute: T, volume: T, length: usize, frames: usize) Self.Error![]T {
+            const samples = try allocator.alloc(T, frames * channels);
             const rate: T = @floatFromInt(sample_rate);
             const release_frames = dsp.frames(T, self.release, sample_rate);
 
@@ -76,7 +79,7 @@ pub fn inner(comptime T: type) type {
             var top = dsp.Biquad(T).init(.lowpass, self.brightness, 0.707, rate);
             var dc = dsp.Biquad(T).init(.highpass, 60.0, 0.707, rate);
 
-            for (samples, 0..) |*sample, i| {
+            for (0..samples.len / channels) |i| {
                 const t = @as(T, @floatFromInt(i)) / rate;
 
                 var string: T = 0.0;
@@ -86,18 +89,47 @@ pub fn inner(comptime T: type) type {
                 const plucked = dc.process(top.process(string)) * dsp.rise(T, t, self.attack);
                 const voiced = plucked + self.body * air.process(plucked);
 
-                sample.* = volume * 1.2 * voiced * dsp.tail(T, i, length, release_frames);
+                const value = volume * 1.2 * voiced * dsp.tail(T, i, length, release_frames);
+                for (0..channels) |j|
+                    samples[i * channels + j] = value;
             }
             return samples;
         }
+
+        pub fn wave(self: Self, allocator: std.mem.Allocator, sample_rate: u32, channels: u16, frequency: T, mute: T, volume: T, length: usize, frames: usize) Self.Error!lightmix.Wave(T) {
+            const samples = try self.render(allocator, sample_rate, channels, frequency, mute, volume, length, frames);
+
+            return .{
+                .samples = samples,
+                .allocator = allocator,
+                .sample_rate = sample_rate,
+                .channels = channels,
+            };
+        }
     };
+}
+
+test "every channel of a frame holds the same value, and wave wraps render" {
+    const allocator = std.testing.allocator;
+    const guitar: inner(f64) = .{};
+    const mono = try guitar.render(allocator, 44100, 1, 110.0, 0.0, 1.0, 4410, 4410);
+    defer allocator.free(mono);
+    const stereo = try guitar.wave(allocator, 44100, 2, 110.0, 0.0, 1.0, 4410, 4410);
+    defer allocator.free(stereo.samples);
+
+    try std.testing.expectEqual(@as(u16, 2), stereo.channels);
+    try std.testing.expectEqual(@as(usize, 4410 * 2), stereo.samples.len);
+    for (mono, 0..) |value, i| {
+        try std.testing.expectEqual(value, stereo.samples[i * 2]);
+        try std.testing.expectEqual(value, stereo.samples[i * 2 + 1]);
+    }
 }
 
 test "render returns the frames asked for, starting and ending at zero" {
     const allocator = std.testing.allocator;
     const guitar: inner(f64) = .{};
     inline for (.{ 0.0, 1.0 }) |mute| {
-        const samples = try guitar.render(allocator, 44100, 164.8, mute, 1.0, 9450, 9450);
+        const samples = try guitar.render(allocator, 44100, 1, 164.8, mute, 1.0, 9450, 9450);
         defer allocator.free(samples);
 
         try std.testing.expectEqual(@as(usize, 9450), samples.len);
@@ -114,7 +146,7 @@ test "a muted note dies away faster than an open one" {
     const guitar: inner(f64) = .{};
     var energy: [2]f64 = .{ 0.0, 0.0 };
     inline for (.{ 0.0, 1.0 }, 0..) |mute, k| {
-        const samples = try guitar.render(allocator, 44100, 82.4, mute, 1.0, 22050, 22050);
+        const samples = try guitar.render(allocator, 44100, 1, 82.4, mute, 1.0, 22050, 22050);
         defer allocator.free(samples);
         // Energy after 0.25 s.
         for (samples[11025..]) |s| energy[k] += s * s;
@@ -125,9 +157,9 @@ test "a muted note dies away faster than an open one" {
 test "a cut note is the start of the full note" {
     const allocator = std.testing.allocator;
     const guitar: inner(f64) = .{};
-    const full = try guitar.render(allocator, 44100, 123.5, 0.8, 0.9, 9450, 9450);
+    const full = try guitar.render(allocator, 44100, 1, 123.5, 0.8, 0.9, 9450, 9450);
     defer allocator.free(full);
-    const cut = try guitar.render(allocator, 44100, 123.5, 0.8, 0.9, 9450, 5000);
+    const cut = try guitar.render(allocator, 44100, 1, 123.5, 0.8, 0.9, 9450, 5000);
     defer allocator.free(cut);
     try std.testing.expectEqualSlices(f64, full[0..5000], cut);
 }

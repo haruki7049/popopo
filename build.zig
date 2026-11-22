@@ -110,6 +110,8 @@ fn build_sandbox(
         .{ "sandbox/closed-hihat-mono.zig", "closed-hihat-mono.wav" },
         .{ "sandbox/open-hihat-mono.zig", "open-hihat-mono.wav" },
         .{ "sandbox/crash-mono.zig", "crash-mono.wav" },
+        .{ "sandbox/guitar-mono.zig", "guitar-mono.wav" },
+        .{ "sandbox/guitar-stereo.zig", "guitar-stereo.wav" },
         .{ "sandbox/four-on-the-flour.zig", "four-on-the-flour.wav" },
         .{ "sandbox/eight-beat.zig", "eight-beat.wav" },
     };
